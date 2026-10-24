@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -11,3 +14,7 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # The types follow the oldest Node.js the package supports.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
