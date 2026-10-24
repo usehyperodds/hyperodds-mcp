@@ -1,0 +1,38 @@
+name: Bug report
+description: The bridge did something wrong or did not work with a client.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and version
+      description: From the client's About screen.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Package and Node.js versions
+      description: From `npx -y @hyperodds/mcp --version` and `node --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Windows, Linux, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The server log your client keeps for `hyperodds` (Claude Desktop on macOS writes it to `~/Library/Logs/Claude/mcp-server-hyperodds.log`). Remove anything private.
+      render: text

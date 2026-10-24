@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/usehyperodds/hyperodds-mcp/security/advisories/new
+    about: Please report security problems privately.
+  - name: MCP guide
+    url: https://usehyperodds.com/docs/mcp
+    about: What each tool gives back and how to read the numbers.

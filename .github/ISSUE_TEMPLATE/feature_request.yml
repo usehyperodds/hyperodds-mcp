@@ -1,0 +1,16 @@
+name: Feature request
+description: A tool, a field or a client you would like supported.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do
+      description: The question you want an agent to answer, or the client you want to use.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today
+      description: What the tools give you now, and where that falls short.
