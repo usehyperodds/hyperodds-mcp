@@ -64,12 +64,12 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 
 ## Tools
 
-| Tool | Input | Output |
-| --- | --- | --- |
-| `odds_markets` | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total |
-| `odds_cluster` | `id`, or the `outcome` of any member | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book |
-| `odds_fair` | `outcome` | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
-| `odds_new` | `category`, `limit` (up to 100), `offset` | Markets in listing order, newest first, with the same fields as `odds_markets` |
+| Tool           | Input                                                                                                    | Output                                                                                                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `odds_markets` | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total                                                   |
+| `odds_cluster` | `id`, or the `outcome` of any member                                                                     | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                                |
+| `odds_fair`    | `outcome`                                                                                                | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
+| `odds_new`     | `category`, `limit` (up to 100), `offset`                                                                | Markets in listing order, newest first, with the same fields as `odds_markets`                                                                                                |
 
 Your client receives each tool's input and output schema when it connects. The
 [MCP guide](https://usehyperodds.com/docs/mcp) explains the numbers.
@@ -106,8 +106,8 @@ server answers with an error that names it.
 
 ## Configuration
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
+| Variable            | Default                            | Purpose                  |
+| ------------------- | ---------------------------------- | ------------------------ |
 | `HYPERODDS_MCP_URL` | `https://api.usehyperodds.com/mcp` | The server to forward to |
 
 Set it in the client entry's `env`:

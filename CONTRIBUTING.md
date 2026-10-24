@@ -2,7 +2,6 @@
 
 Thanks for helping. This repository holds `@hyperodds/mcp`, the stdio bridge to the hosted
 Hyperodds MCP server.
-
 - A bug in how the bridge relays messages, a client it does not work with, or a gap in these
   docs: open an issue or a pull request here.
 - A tool's output, a missing field or a new tool: open a

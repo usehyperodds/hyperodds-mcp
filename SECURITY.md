@@ -3,7 +3,6 @@
 ## Reporting a vulnerability
 
 Please report security problems privately, not in a public issue. Either:
-
 - use **Report a vulnerability** under this repository's
   [Security tab](https://github.com/usehyperodds/hyperodds-mcp/security/advisories/new), or
 - email security@usehyperodds.com.
