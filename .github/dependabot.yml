@@ -18,3 +18,6 @@ updates:
       # The types follow the oldest Node.js the package supports.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # A new TypeScript major is its own change, made by hand.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
