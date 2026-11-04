@@ -3,6 +3,15 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-11-04
+
+### Changed
+
+- Published from GitHub Actions with npm provenance, so the package on npm links to the commit and
+  workflow that built it.
+- The README and the package description say what this is: a bridge to the hosted Hyperodds MCP
+  server, where the tools and their data run.
+
 ## [0.1.0] - 2026-10-25
 
 ### Added
@@ -15,4 +24,5 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
+[0.1.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.0

@@ -17,8 +17,10 @@ Give Claude, Cursor, VS Code or any other MCP client live data on Hyperliquid's 
 markets from every deployer: books, fair lines with their sources, rule comparisons where several
 deployers list the same question, and the newest listings. Free, with no key to set up.
 
-`@hyperodds/mcp` runs on your machine over stdio and forwards each request to the hosted Hyperodds
-server. It has no dependencies, and its tools are read-only: none can trade or access an account.
+`@hyperodds/mcp` is a bridge. It runs on your machine over stdio and forwards each request to the
+hosted Hyperodds MCP server at `api.usehyperodds.com/mcp`, where the tools and their data run. This
+repository holds the bridge only; the hosted server is not open source. The bridge has no
+dependencies, and the tools are read-only: none can trade or access an account.
 
 ## Quick start
 
