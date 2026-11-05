@@ -3,6 +3,14 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-05
+
+### Added
+
+- A Claude Desktop extension, `hyperodds.mcpb`, attached to each GitHub release. Open it in Claude
+  Desktop to install the bridge with one click; it runs on the Node.js that comes with Claude
+  Desktop. The npm package is unchanged.
+
 ## [0.1.1] - 2026-11-04
 
 ### Changed
@@ -24,5 +32,6 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
+[0.2.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.0
 [0.1.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.0

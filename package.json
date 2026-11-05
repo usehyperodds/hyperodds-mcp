@@ -1,6 +1,6 @@
 {
   "name": "@hyperodds/mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Stdio bridge to the hosted Hyperodds MCP server: read-only Hyperliquid HIP-4 outcome market data for local MCP clients.",
   "keywords": [
     "mcp",
