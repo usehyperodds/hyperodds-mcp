@@ -24,8 +24,16 @@ dependencies, and the tools are read-only: none can trade or access an account.
 
 ## Quick start
 
-Claude Desktop (Settings > Developer > Edit Config), Cursor (`~/.cursor/mcp.json`, or
-`.cursor/mcp.json` in one project) and Windsurf take this entry:
+Claude Desktop installs Hyperodds as an extension: download
+[`hyperodds.mcpb`](https://github.com/usehyperodds/hyperodds-mcp/releases/latest/download/hyperodds.mcpb)
+from the latest release and open it. Claude Desktop lists the tools and adds them when you select
+Install. The extension is this bridge, and it runs on the Node.js that comes with Claude Desktop.
+
+Cursor, VS Code and LM Studio can add the hosted server with one click from the
+[MCP guide](https://usehyperodds.com/docs/mcp#install).
+
+To add the bridge by hand, Claude Desktop (Settings > Developer > Edit Config), Cursor
+(`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) and Windsurf take this entry:
 
 ```json
 {
@@ -136,7 +144,9 @@ npm ci
 npm test
 ```
 
-`npm run lint` and `npm run typecheck` run the other checks CI runs. See
+`npm run lint` and `npm run typecheck` run the other checks CI runs. `npm run mcpb` packs the
+Claude Desktop extension into `build/hyperodds.mcpb` from `mcpb/manifest.json`, the icon beside it
+and the built bridge; the release workflow attaches the same file to each GitHub release. See
 [CONTRIBUTING.md](https://github.com/usehyperodds/hyperodds-mcp/blob/main/CONTRIBUTING.md) before
 opening a pull request.
 

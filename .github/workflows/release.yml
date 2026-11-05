@@ -28,12 +28,15 @@ jobs:
       - run: npm test
       - name: the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - name: pack the Claude Desktop extension
+        run: node scripts/mcpb.mjs build/hyperodds.mcpb
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: GitHub release from the changelog entry
+      - name: GitHub release from the changelog entry, with the extension attached
         run: |
           awk '/^## \[/{n++} n==1' CHANGELOG.md | tail -n +2 > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+          gh release create "$GITHUB_REF_NAME" build/hyperodds.mcpb --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}

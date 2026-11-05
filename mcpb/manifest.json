@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.3.schema.json",
+  "manifest_version": "0.3",
+  "name": "hyperodds",
+  "display_name": "Hyperodds",
+  "version": "0.1.1",
+  "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer: books, fair lines with their sources, rule comparisons and the newest listings.",
+  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book, a fair line and where it comes from, the edge after every fee, and whether other deployers listing the same question settle it by the same rules.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Is the next Fed decision priced the same on every deployer, and do their rules match?\n- What was listed in the last hour?\n\nEvery tool is read-only: none can trade or access an account. There is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 tool calls a day per IP address.",
+  "author": {
+    "name": "Hyperodds",
+    "email": "dev@usehyperodds.com",
+    "url": "https://usehyperodds.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usehyperodds/hyperodds-mcp.git"
+  },
+  "homepage": "https://usehyperodds.com",
+  "documentation": "https://usehyperodds.com/docs/mcp",
+  "support": "https://github.com/usehyperodds/hyperodds-mcp/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/cli.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/cli.js"]
+    }
+  },
+  "tools": [
+    {
+      "name": "odds_markets",
+      "description": "HIP-4 markets from every deployer with the book, fair line, edge after fees, 24-hour volume and event time. Filter by category, deployer or text and sort by edge, volume, new or settling."
+    },
+    {
+      "name": "odds_cluster",
+      "description": "One question listed by several deployers: each listing's rule grade (SAME, CLOSE or DIFFERENT), the differences found and the merged book."
+    },
+    {
+      "name": "odds_fair",
+      "description": "One market's fair line: probability and band, method, confidence, each source with its weight and age, and the edge after fees for each way to trade."
+    },
+    {
+      "name": "odds_new",
+      "description": "The newest HIP-4 listings first, with the same fields as odds_markets."
+    }
+  ],
+  "tools_generated": true,
+  "keywords": ["hyperliquid", "hip-4", "outcome markets", "prediction markets", "odds"],
+  "license": "MIT",
+  "privacy_policies": ["https://usehyperodds.com/privacy"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=22"
+    }
+  }
+}
