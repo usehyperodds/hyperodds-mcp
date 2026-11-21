@@ -29,6 +29,17 @@ Claude Desktop installs Hyperodds as an extension: download
 from the latest release and open it. Claude Desktop lists the tools and adds them when you select
 Install. The extension is this bridge, and it runs on the Node.js that comes with Claude Desktop.
 
+To check the file before you open it, compare its SHA-256 with the one in the release notes
+(`shasum -a 256 hyperodds.mcpb` on macOS, `certutil -hashfile hyperodds.mcpb SHA256` on Windows),
+or confirm with the GitHub CLI that this repository's release workflow built it:
+
+```sh
+gh attestation verify hyperodds.mcpb --repo usehyperodds/hyperodds-mcp
+```
+
+The file is not signed with an MCPB certificate, so these checks are how to confirm where it came
+from.
+
 To add the bridge by hand, Claude Desktop (Settings > Developer > Edit Config), Cursor
 (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) and Windsurf take this entry:
 
