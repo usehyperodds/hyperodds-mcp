@@ -4,8 +4,8 @@
   "name": "hyperodds",
   "display_name": "Hyperodds",
   "version": "0.2.0",
-  "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer: books, fair lines with their sources, rule comparisons and the newest listings.",
-  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book, a fair line and where it comes from, the edge after every fee, and whether other deployers listing the same question settle it by the same rules.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n\nEvery tool is read-only: none can trade or access an account. There is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 tool calls a day per IP address.",
+  "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer, and a public record that scores Claude's forecasts against each market's settlement.",
+  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book, a fair line and where it comes from, the edge after every fee, and whether other deployers listing the same question settle it by the same rules.\n\nClaude can also enter forecasts in Hyperodds' public record: a probability for each market, signed on this computer. Hyperodds records each forecast next to its own fair line and the market price, keeps it private until the market's cutoff, then publishes it and scores it once Hyperliquid settles the market. A public board ranks forecasters by how much they beat the fair line.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n- Forecast today's BTC and ETH markets and enter them in the record.\n\nNo tool can trade, move funds or access an account, and there is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 market data calls a day per IP address; forecast tools don't count toward it. On the first forecast, the extension makes a forecaster key and keeps it on this computer, in ~/.config/hyperodds/forecaster.key (%APPDATA%\\hyperodds\\forecaster.key on Windows). A forecast sends Hyperodds its forecaster address and the signed forecast, never the key.",
   "author": {
     "name": "Hyperodds",
     "email": "dev@usehyperodds.com",
@@ -28,7 +28,28 @@
     "entry_point": "dist/cli.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/cli.js"]
+      "args": ["${__dirname}/dist/cli.js"],
+      "env": {
+        "HYPERODDS_FORECAST_KEY": "${user_config.forecaster_key}",
+        "HYPERODDS_FORECAST_SIGNING": "${user_config.forecast_signing}"
+      }
+    }
+  },
+  "user_config": {
+    "forecaster_key": {
+      "type": "string",
+      "title": "Forecaster key",
+      "description": "Optional. A private key, 64 hex digits, to sign forecasts with, such as the one from another computer to keep the same forecaster. Leave it empty to use the key the extension makes on the first forecast.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "forecast_signing": {
+      "type": "boolean",
+      "title": "Sign forecasts on this computer",
+      "description": "When off, a forecast comes back as a sign link for a wallet of your own instead.",
+      "required": false,
+      "default": true
     }
   },
   "tools": [
@@ -47,10 +68,22 @@
     {
       "name": "odds_new",
       "description": "The newest HIP-4 listings first, with the same fields as odds_markets."
+    },
+    {
+      "name": "odds_forecast",
+      "description": "Enters forecasts in Hyperodds' public record: a probability for each of up to 50 markets, signed on this computer. Each stays private until its market's cutoff and is scored against Hyperliquid's settlement."
+    },
+    {
+      "name": "odds_forecast_record",
+      "description": "One forecaster's public record: their board row, forecasts past the cutoff with results and scores, and how many are still private. Without an address, this computer's forecaster."
+    },
+    {
+      "name": "odds_leaderboard",
+      "description": "Forecasters ranked by mean skill over Hyperodds' fair line on settled forecasts, with the fair line and the market price scored as baselines."
     }
   ],
   "tools_generated": true,
-  "keywords": ["hyperliquid", "hip-4", "outcome markets", "prediction markets", "odds"],
+  "keywords": ["hyperliquid", "hip-4", "outcome markets", "prediction markets", "odds", "forecasting"],
   "license": "MIT",
   "privacy_policies": ["https://usehyperodds.com/privacy"],
   "compatibility": {

@@ -15,12 +15,15 @@
 
 Give Claude, Cursor, VS Code or any other MCP client live data on Hyperliquid's HIP-4 outcome
 markets from every deployer: books, fair lines with their sources, rule comparisons where several
-deployers list the same question, and the newest listings. Free, with no key to set up.
+deployers list the same question, and the newest listings. Your agent can also enter its own
+forecasts in Hyperodds' public record, where each one is scored against the market's settlement.
+Free, with no account to set up.
 
 `@hyperodds/mcp` is a bridge. It runs on your machine over stdio and forwards each request to the
 hosted Hyperodds MCP server at `api.usehyperodds.com/mcp`, where the tools and their data run. This
-repository holds the bridge only; the hosted server is not open source. The bridge has no
-dependencies, and the tools are read-only: none can trade or access an account.
+repository holds the bridge only; the hosted server is not open source. The bridge signs forecasts
+on your machine with two audited libraries, `@noble/curves` and `@noble/hashes`, and has no other
+dependencies. No tool can trade, move funds or access an account.
 
 ## Quick start
 
@@ -68,15 +71,19 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 - "Is the next Fed decision priced the same on every deployer, and do their rules match?"
 - "Where does the fair line for the BTC markets settling today come from, and how confident is it?"
 - "What was listed in the last hour?"
+- "Forecast today's BTC and ETH markets and enter your forecasts in the record."
 
 ## Tools
 
-| Tool           | Input                                                                                                    | Output                                                                                                                                                                        |
-| -------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `odds_markets` | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total                                                   |
-| `odds_cluster` | `id`, or the `outcome` of any member                                                                     | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                                |
-| `odds_fair`    | `outcome`                                                                                                | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
-| `odds_new`     | `category`, `limit` (up to 100), `offset`                                                                | Markets in listing order, newest first, with the same fields as `odds_markets`                                                                                                |
+| Tool                   | Input                                                                                                    | Output                                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `odds_markets`         | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total                                                   |
+| `odds_cluster`         | `id`, or the `outcome` of any member                                                                     | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                                |
+| `odds_fair`            | `outcome`                                                                                                | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
+| `odds_new`             | `category`, `limit` (up to 100), `offset`                                                                | Markets in listing order, newest first, with the same fields as `odds_markets`                                                                                                |
+| `odds_forecast`        | `forecasts`: up to 50 of an `outcome` and a `probabilityBps` from 1 to 9999                              | The forecasts as recorded, signed on your machine, with the UTC day whose record they join                                                                                    |
+| `odds_forecast_record` | `address` (your forecaster if left out), `limit` (up to 100), `offset`                                   | One forecaster's board row, their forecasts past the cutoff with results and scores, and how many are still private                                                           |
+| `odds_leaderboard`     | `limit` (up to 100), `offset`                                                                            | Forecasters ranked by skill over Hyperodds' fair line, with the fair line and the market price scored as baselines                                                            |
 
 Your client receives each tool's input and output schema when it connects. The
 [MCP guide](https://usehyperodds.com/docs/mcp) explains the numbers.
@@ -89,10 +96,12 @@ Your client receives each tool's input and output schema when it connects. The
 </picture>
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
-The bridge keeps no state beyond the protocol version agreed when the client connects. Requests
-run side by side. If one fails or gets no answer within 30 seconds, the client receives a
-JSON-RPC error that names the cause; a cancelled request is dropped. When the client closes the
-connection, the bridge drops what is still in flight and exits.
+A forecast takes two: the bridge asks Hyperodds for a draft under your forecaster, checks that it
+holds exactly the forecasts your agent asked for, signs it and sends it back. Apart from the
+forecaster key, the bridge keeps no state beyond the protocol version agreed when the client
+connects. Requests run side by side. If one fails or gets no answer within 30 seconds, the client
+receives a JSON-RPC error that names the cause; a cancelled request is dropped. When the client
+closes the connection, the bridge drops what is still in flight and exits.
 
 ## Reading the numbers
 
@@ -105,28 +114,80 @@ volatility on Hyperliquid perps. Sports and events take theirs from matched Poly
 quotes. Fair lines are estimates: edge rankings only use lines with a `fairConfidence` of at least
 0.5 and more than one source, so check both before acting on one.
 
+## Forecasts
+
+An agent can enter forecasts in Hyperodds' public record: for each market, the probability that its
+first side wins. Hyperodds records each forecast with its own fair line and the market's mid price
+at that moment. A forecast stays private until the market's cutoff, such as a game's start or a
+price market's price time. Then it appears in the forecaster's public record and in a daily record
+anyone can check. Once Hyperliquid settles the market, the forecast gets a Brier score, the squared
+distance between the forecast and the result, where lower is better. The board at
+[usehyperodds.com/forecasts](https://usehyperodds.com/forecasts) ranks forecasters by how much they
+beat the fair line.
+
+Entries close an hour before each market's cutoff, and one call takes up to 50 markets whose
+cutoffs fall on the same UTC day. A later forecast on the same market replaces the earlier one for
+scoring; both stay in the record. There are no prizes or payouts.
+
+### Your forecaster key
+
+The bridge signs every forecast on your machine, so the record shows who made each one and that no
+one has changed it since. On the first forecast, the bridge makes a key and saves it in a file only
+you can read:
+
+| System          | File                                                                                                |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| macOS and Linux | `~/.config/hyperodds/forecaster.key`, or `$XDG_CONFIG_HOME/hyperodds/forecaster.key` when it is set |
+| Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
+
+The key's address is your forecaster. After each forecast, the bridge names it and its public
+record, `https://usehyperodds.com/forecasts/<address>`. Hyperodds receives the address and the
+signed forecasts, never the key. Before it signs, the bridge checks that the draft holds the
+forecasts your agent asked for and nothing else.
+- **Back it up.** Copy the file somewhere safe. Whoever holds it can forecast under your address,
+  and without it no one can add to that record.
+- **Use it on another machine.** Copy the file to the same place there, or set
+  `HYPERODDS_FORECAST_KEY` to its contents. In Claude Desktop, paste its contents into the
+  extension's **Forecaster key** setting.
+- **Start over.** Move or delete the file. The next forecast makes a new key, and with it a new
+  forecaster. The old record stays public under the old address.
+
+The key is for forecasts only. Don't send funds to its address.
+
+### Signing with your own wallet
+
+To sign forecasts with a wallet of your own, set `HYPERODDS_FORECAST_SIGNING=off` in the client
+entry's `env`. In Claude Desktop, turn off **Sign forecasts on this computer** in the extension's
+settings. The bridge then passes forecasts through unchanged, and Hyperodds answers with a sign
+link to open in the browser where your wallet is. With signing on, a forecast that names another
+wallet's address as `forecaster` also gets a sign link for that wallet.
+
 ## Limits
 
-Each IP address gets 1,000 tool calls a day, reset at 00:00 UTC. Every request, tool call or not,
-also counts toward a rate limit of 5 a second, with bursts of up to 30. Past either limit, the
-server answers with an error that names it.
+Each IP address gets 1,000 calls to the market tools a day, reset at 00:00 UTC; the forecast tools
+don't count toward it. Every request, tool call or not, also counts toward a rate limit of 5 a
+second, with bursts of up to 30. Forecasts have limits of their own: 1,000 a day for each
+forecaster, and 30 forecast calls an hour from one IP address, since each call asks for a draft.
+Past any limit, the server answers with an error that names it.
 
 ## Configuration
 
 These settings apply to the entry you add by hand. The Claude Desktop extension always uses the
-hosted server.
+hosted server, and its settings cover the forecaster key and signing.
 
-| Variable            | Default                            | Purpose                  |
-| ------------------- | ---------------------------------- | ------------------------ |
-| `HYPERODDS_MCP_URL` | `https://api.usehyperodds.com/mcp` | The server to forward to |
+| Variable                     | Default                            | Purpose                                                     |
+| ---------------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp` | The server to forward to                                    |
+| `HYPERODDS_FORECAST_KEY`     | The key file                       | A private key to sign forecasts with, 64 hex digits         |
+| `HYPERODDS_FORECAST_SIGNING` | `on`                               | `off` sends forecasts unsigned, for a sign link to a wallet |
 
-Set it in the client entry's `env`:
+Set them in the client entry's `env`:
 
 ```json
 {
   "command": "npx",
   "args": ["-y", "@hyperodds/mcp"],
-  "env": { "HYPERODDS_MCP_URL": "https://mcp.example.com/mcp" }
+  "env": { "HYPERODDS_FORECAST_SIGNING": "off" }
 }
 ```
 

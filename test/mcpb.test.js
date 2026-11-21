@@ -63,6 +63,26 @@ describe("Claude Desktop extension", () => {
     );
   });
 
+  test("the forecaster key setting is optional and empty unless the person fills it in", async () => {
+    const config = (userConfig) =>
+      getMcpConfigForManifest({
+        manifest,
+        extensionPath: work,
+        systemDirs: {},
+        userConfig,
+        pathSeparator: sep,
+      });
+    assert.deepEqual((await config({})).env, {
+      HYPERODDS_FORECAST_KEY: "",
+      HYPERODDS_FORECAST_SIGNING: "true",
+    });
+    assert.deepEqual((await config({ forecaster_key: "0xabc", forecast_signing: false })).env, {
+      HYPERODDS_FORECAST_KEY: "0xabc",
+      HYPERODDS_FORECAST_SIGNING: "false",
+    });
+    assert.equal(manifest.user_config.forecaster_key.sensitive, true);
+  });
+
   test("the packed extension unpacks and runs the way Claude Desktop runs it", {
     timeout: 30_000,
   }, async (t) => {
