@@ -59,7 +59,9 @@ describe("Claude Desktop extension", () => {
     );
   });
 
-  test("the packed extension unpacks and runs the way Claude Desktop runs it", async () => {
+  test("the packed extension unpacks and runs the way Claude Desktop runs it", {
+    timeout: 30_000,
+  }, async (t) => {
     const file = join(work, "hyperodds.mcpb");
     await promisify(execFile)(process.execPath, [join(root, "scripts", "mcpb.mjs"), file]);
     const dir = join(work, "installed");
@@ -86,18 +88,34 @@ describe("Claude Desktop extension", () => {
 
     // Claude Desktop runs "node" with the Node.js it ships; this test's Node stands in for it.
     const proc = spawn(process.execPath, config.args, { env: { ...process.env, HYPERODDS_MCP_URL: url } });
+    t.after(() => proc.kill());
+    const exited = new Promise((r) => proc.on("close", r));
     let stdout = "";
-    const answered = new Promise((done) =>
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      stderr += d;
+    });
+    const answered = new Promise((done, fail) => {
+      const timer = setTimeout(() => quit("The extension did not answer within 10 seconds"), 10_000);
+      const quit = (why) => {
+        clearTimeout(timer);
+        fail(new Error(`${why}. Its stderr:\n${stderr || "(empty)"}`));
+      };
+      proc.on("error", (e) => quit(`The extension did not start (${e.message})`));
+      proc.on("close", (code) => quit(`The extension exited with code ${code} before it answered`));
+      proc.stdin.on("error", (e) => quit(`The extension stopped reading (${e.message})`));
       proc.stdout.on("data", (d) => {
         stdout += d;
-        if (stdout.split("\n").filter(Boolean).length === 2) done();
-      }),
-    );
+        if (stdout.split("\n").filter(Boolean).length < 2) return;
+        clearTimeout(timer);
+        done();
+      });
+    });
     proc.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} })}\n`);
     proc.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" })}\n`);
     await answered;
     proc.stdin.end();
-    assert.equal(await new Promise((r) => proc.on("close", r)), 0);
+    assert.equal(await exited, 0);
     const answers = new Map(
       stdout
         .trim()
