@@ -34,8 +34,8 @@ To try a change in a real client, point the client's command at your build:
 ## Pull requests
 
 - Keep each pull request to one change, with a test that fails without it.
-- Keep dependencies to the two audited `@noble` libraries the bridge signs with. It runs through
-  `npx` every time a client starts it, and the extension carries every file it loads.
+- Keep dependencies to the two audited `@noble` libraries the bridge signs with. The bridge runs
+  through `npx` every time a client starts it, and the extension carries every file it loads.
 - Write commit messages in the imperative, short and lowercase: `answer batched requests one by one`.
 - Describe how you tested it, including the client and Node version if it matters.
 
@@ -47,6 +47,7 @@ By contributing, you agree to release your work under the [MIT license](LICENSE)
 Maintainers release from `main`: bump the version in `package.json`, `mcpb/manifest.json` and the
 README's pinned `npx` line, add the entry to [CHANGELOG.md](CHANGELOG.md) and push a `vX.Y.Z` tag.
 The release workflow checks the tag against `package.json` and publishes to npm with provenance, so
-the package links back to the commit and workflow that built it. It then opens the GitHub release from the changelog entry and
-attaches the Claude Desktop extension, `hyperodds.mcpb`, with a build attestation and its SHA-256
-in the notes. If a run fails partway, re-run it: it skips what an earlier run already published.
+the package links back to the commit and workflow that built it. It then opens the GitHub release
+from the changelog entry and attaches the Claude Desktop extension, `hyperodds.mcpb`, with a build
+attestation and its SHA-256 in the notes. If a run fails partway, re-run it: it skips what an
+earlier run already published.

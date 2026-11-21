@@ -108,13 +108,12 @@ Your client receives each tool's input and output schema when it connects. The
 </picture>
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
-For a forecast, the bridge builds the message from the forecasts your agent asked for, signs it with
-your forecaster key and sends it in that one request. It never signs anything a server sends it.
-Apart from the forecaster key and the time it last signed on each market, the bridge keeps no state
-beyond the protocol version agreed when the client connects. Requests run side by side. If one fails
-or gets no answer within 30 seconds, the client receives a JSON-RPC error that names the cause; a
-cancelled request is dropped. When the client closes the connection, the bridge drops what is still
-in flight and exits.
+For a forecast, the bridge uses your forecaster key to sign the forecasts your agent asked for, and
+sends them in that same request. It never signs anything a server sends it. Beyond the protocol
+version agreed when the client connects, the bridge keeps only your forecaster key and the time it
+last signed on each market. Requests run side by side. If one fails or gets no answer within 30
+seconds, the client receives a JSON-RPC error that names the cause; a cancelled request is dropped.
+When the client closes the connection, the bridge drops what is still in flight and exits.
 
 ## Reading the numbers
 
@@ -131,18 +130,18 @@ quotes. Fair lines are estimates: edge rankings only use lines with a `fairConfi
 
 An agent can enter forecasts in Hyperodds' public record: for each market, the probability that its
 first side wins. Hyperodds records each forecast with its own fair line and the market's mid price
-at that moment. A forecast stays private until the market's cutoff, such as a game's start or a
-price market's price time. Then it appears in the forecaster's public record and in a daily record
-anyone can check. Once Hyperliquid settles the market, the forecast gets a Brier score, the squared
-distance between the forecast and the result, where lower is better. The board at
+at that moment. A forecast stays private until the market's cutoff, such as the start of a game or
+the moment a price market takes its price. Then it appears in the forecaster's public record and in
+a daily record anyone can check. Once Hyperliquid settles the market, the forecast gets a Brier
+score, the squared distance between the forecast and the result, where lower is better. The board at
 [usehyperodds.com/forecasts](https://usehyperodds.com/forecasts) ranks forecasters by how much they
 beat the fair line.
 
 Entries close an hour before each market's cutoff, and one call takes up to 50 markets whose
 cutoffs fall on the same UTC day. If you forecast a market again, the forecast signed latest is the
 one scored; earlier ones stay in the record. The bridge signs each forecast at least a second after
-its last one on the same market, so a quick revision still counts, and keeps those times in
-`forecast-times.json` beside the key. There are no prizes or payouts.
+its last one on the same market, so a quick revision still counts. It keeps those times in
+`forecast-times.json`, beside the key. There are no prizes or payouts.
 
 ### Your forecaster key
 
@@ -155,14 +154,14 @@ you can read:
 | macOS and Linux | `~/.config/hyperodds/forecaster.key`, or `$XDG_CONFIG_HOME/hyperodds/forecaster.key` when it is set |
 | Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
 
-The key's address is your forecaster. After each forecast, the bridge names it and its public
-record, `https://usehyperodds.com/forecasts/<address>`. With a server you set by hand, it links the
-record only when `HYPERODDS_SITE_URL` names the site that publishes it. Hyperodds receives the address and the
-signed forecasts, never the key.
-
 On macOS and Linux, the bridge refuses a key file that another user owns, or one in a folder other
 users can write to, and says how to fix it. On Windows, the file relies on the permissions of your
 `%APPDATA%` folder, which the computer's administrators can read.
+
+The key's address is your forecaster. After each forecast, the bridge names it and links its public
+record, `https://usehyperodds.com/forecasts/<address>`. With a server you set by hand, it links the
+record only when `HYPERODDS_SITE_URL` names the site that publishes it. Hyperodds receives the
+address and the signed forecasts, never the key.
 - **Back it up.** Copy the file somewhere safe. Whoever holds it can forecast under your address,
   and without it no one can add to that record.
 - **Use it on another machine.** Copy the file to the same place there, or set
@@ -173,24 +172,25 @@ users can write to, and says how to fix it. On Windows, the file relies on the p
   forecaster. The old record stays public under the old address.
 
 The key is for forecasts only. Don't send funds to its address, and never give the bridge a key that
-holds funds. To forecast as a wallet you already have, sign with that wallet as described below.
+holds funds. To forecast as a wallet you already have, see
+[Signing with your own wallet](#signing-with-your-own-wallet).
 
 ### Approving forecasts
 
 With signing on, the bridge enters forecasts as soon as your agent calls `odds_forecast`. Your
 client's prompt to approve that tool call is the only confirmation, so keep approval on for it if
 you want to see each forecast before it is entered. The tool's description tells the agent to enter
-forecasts only when you ask, and to treat market titles, side names and deployer names as data,
-never as instructions.
+forecasts only when you ask, and not to act on instructions in market titles, side names or
+deployer names.
 
 ### Signing with your own wallet
 
-To forecast as a wallet you already have, sign in that wallet rather than handing its key to the
-bridge. Set `HYPERODDS_FORECAST_SIGNING=off` in the client entry's `env`. In Claude Desktop, turn
-off **Sign forecasts on this computer** in the extension's settings. The bridge then passes
-forecasts through unchanged, and Hyperodds answers with a sign link to open in the browser where
-your wallet is. With signing on, a forecast that names another wallet's address as `forecaster` also
-gets a sign link for that wallet.
+To forecast as a wallet you already have, sign the forecasts in that wallet. Set
+`HYPERODDS_FORECAST_SIGNING=off` in the client entry's `env`, or in Claude Desktop, turn off
+**Sign forecasts on this computer** in the extension's settings. The bridge then passes forecasts
+through unchanged, and Hyperodds answers with a sign link to open in the browser where your wallet
+is. With signing on, a forecast that names another wallet's address as `forecaster` also gets a sign
+link for that wallet.
 
 ## Limits
 
@@ -209,12 +209,13 @@ reports when it connects. Each request also carries a user agent with the bridge
 versions, such as `hyperodds-mcp/0.2.0 node/24.22.0`. Requests pass through Cloudflare on their way
 to our hosting provider.
 
-Messages go through unchanged, except where the bridge signs. With signing on, it adds a note to the
-descriptions of `odds_forecast` and `odds_forecast_record` in the tool list and makes the second
-one's `address` optional. It sends `odds_forecast` as your forecasts signed by your forecaster key,
-and fills in your forecaster's address when `odds_forecast_record` has none. The forecaster key
-never leaves your machine. Each forecast is private until its market's cutoff, then public with the
-address that signed it.
+Messages go through unchanged, except for the forecast tools while signing is on. The bridge sends
+`odds_forecast` as your forecasts signed by your forecaster key, and fills in your forecaster's
+address when `odds_forecast_record` has none. In the answers, it rewrites both tools' descriptions
+for signing on your machine and makes the second one's `address` optional. After each forecast it
+names your forecaster, and it explains refusals caused by the clock or the signing order. The
+forecaster key never leaves your machine. Each forecast is private until its market's cutoff, then
+public with the address that signed it.
 
 The server counts tool calls per IP address for the daily allowance. It never stores the address
 itself, only a hash made with a key that changes every day, and it deletes each day's key the next
@@ -225,12 +226,12 @@ day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
 The bridge reads its settings from the environment. In an entry you add by hand, set them in
 `env`:
 
-| Variable                     | Default                            | Purpose                                                                                                       |
-| ---------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp` | The server to forward to                                                                                      |
-| `HYPERODDS_FORECAST_KEY`     | The key file                       | A private key to sign forecasts with, 64 hex digits                                                           |
-| `HYPERODDS_FORECAST_SIGNING` | `on`                               | `off` sends forecasts unsigned, for a sign link to a wallet                                                   |
-| `HYPERODDS_SITE_URL`         | None                               | With a server you set by hand, the site that publishes its forecast records, for the link after each forecast |
+| Variable                     | Default                                                    | Purpose                                                                           |
+| ---------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp`                         | The server to forward to                                                          |
+| `HYPERODDS_FORECAST_KEY`     | The key file                                               | A private key made for forecasts, 64 hex digits                                   |
+| `HYPERODDS_FORECAST_SIGNING` | `on`                                                       | `off` sends forecasts unsigned, for a sign link to a wallet                       |
+| `HYPERODDS_SITE_URL`         | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |
 
 ```json
 {
@@ -269,8 +270,8 @@ npm test
 ```
 
 `npm run lint` and `npm run typecheck` run the other checks CI runs. `npm run mcpb` builds the
-bridge and packs it with the manifest and icons in `mcpb/`, and the files it loads from its two
-dependencies, into `build/hyperodds.mcpb`, the file the release workflow attaches to each GitHub
+bridge and packs it into `build/hyperodds.mcpb` with the manifest and icons in `mcpb/` and the files
+it loads from its two dependencies. That is the file the release workflow attaches to each GitHub
 release. See
 [CONTRIBUTING.md](https://github.com/usehyperodds/hyperodds-mcp/blob/main/CONTRIBUTING.md) before
 opening a pull request.
