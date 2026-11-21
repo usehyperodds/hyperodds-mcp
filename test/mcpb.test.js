@@ -73,6 +73,7 @@ describe("Claude Desktop extension", () => {
       join("dist", "cli.js"),
       join("dist", "proxy.js"),
       "icon-dark.png",
+      "icon-light.png",
       "icon.png",
       "manifest.json",
       "package.json",

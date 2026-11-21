@@ -20,7 +20,7 @@
   "support": "https://github.com/usehyperodds/hyperodds-mcp/issues",
   "icon": "icon.png",
   "icons": [
-    { "src": "icon.png", "size": "512x512", "theme": "light" },
+    { "src": "icon-light.png", "size": "512x512", "theme": "light" },
     { "src": "icon-dark.png", "size": "512x512", "theme": "dark" }
   ],
   "server": {
