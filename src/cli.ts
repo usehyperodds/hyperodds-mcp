@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { Bridge } from "./bridge.js";
-import { keyPath } from "./key.js";
+import { keyPath, takeKey } from "./key.js";
 import { proxyNote } from "./proxy.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
@@ -56,6 +56,8 @@ if (target.protocol !== "https:" && target.protocol !== "http:")
 // The query string could carry a secret too, so errors and logs leave it out.
 const shown = `${target.origin}${target.pathname}`;
 
+// Taken out of the environment at once, so nothing else in the process finds the key there.
+const envKey = takeKey();
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))
   fail("HYPERODDS_FORECAST_SIGNING must be on or off.");
@@ -74,7 +76,7 @@ const bridge = new Bridge({
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
-  keys: signs ? { env: process.env.HYPERODDS_FORECAST_KEY, path: keyPath(), log } : undefined,
+  keys: signs ? { env: envKey, path: keyPath(), log } : undefined,
 });
 
 if (process.stdin.isTTY)

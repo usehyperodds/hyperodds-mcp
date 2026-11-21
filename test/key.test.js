@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
 import { digest } from "../dist/forecast.js";
-import { keyPath, openKey } from "../dist/key.js";
+import { keyPath, openKey, takeKey } from "../dist/key.js";
 import { TEST_KEY, vectors } from "./vectors.js";
 
 const TEST_ADDRESS = "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf";
@@ -77,6 +78,68 @@ describe("forecaster key", () => {
     openKey({ path, log: (l) => logs.push(l) }, false);
     assert.equal(logs.length, 1);
     assert.match(logs[0], /can be read by other users/);
+  });
+
+  test("is made once when 16 bridges make their first forecast at the same moment", async () => {
+    const path = freshPath();
+    const module = new URL("../dist/key.js", import.meta.url).href;
+    // Each process waits for the same instant, then opens the key, so the 16 race for the file.
+    const code = `import { openKey } from ${JSON.stringify(module)};
+const [path, at] = process.argv.slice(1);
+while (Date.now() < Number(at));
+console.log(openKey({ path, log: () => {} }, true).address);`;
+    const at = String(Date.now() + 1500);
+    const addresses = await Promise.all(
+      Array.from(
+        { length: 16 },
+        () =>
+          new Promise((done, fail) =>
+            execFile(process.execPath, ["--input-type=module", "-e", code, path, at], (error, out) =>
+              error ? fail(error) : done(out.trim()),
+            ),
+          ),
+      ),
+    );
+    assert.equal(new Set(addresses).size, 1);
+    assert.match(addresses[0], /^0x[0-9a-f]{40}$/);
+    assert.equal(openKey({ path, ...quiet }, false).address, addresses[0]);
+    assert.deepEqual(readdirSync(dirname(path)), ["forecaster.key"]);
+  });
+
+  const posixUser = process.platform !== "win32" && process.getuid?.() !== 0;
+
+  test("that another user owns is refused", { skip: !posixUser }, () => {
+    // A file root owns stands in for another user's key.
+    assert.throws(
+      () => openKey({ path: "/etc/hosts", log: assert.fail }, true),
+      (e) => /belongs to another user of this computer/.test(e.message) && !/localhost/.test(e.message),
+    );
+  });
+
+  test("in a folder other users can write to is refused, and none is made there", {
+    skip: !posixUser,
+  }, () => {
+    const path = freshPath();
+    openKey({ path, ...quiet }, true);
+    const dir = dirname(path);
+    chmodSync(dir, 0o777);
+    try {
+      const swappable =
+        /^Other users of this computer can write to .+, the folder that holds the forecaster key, so the bridge won't use it\. Run: chmod go-w /;
+      assert.throws(() => openKey({ path, log: assert.fail }, false), { message: swappable });
+      rmSync(path);
+      assert.throws(() => openKey({ path, log: assert.fail }, true), { message: swappable });
+      assert.deepEqual(readdirSync(dir), []);
+    } finally {
+      chmodSync(dir, 0o700);
+    }
+  });
+
+  test("from HYPERODDS_FORECAST_KEY is read once and leaves the environment", () => {
+    const env = { HYPERODDS_FORECAST_KEY: TEST_KEY, PATH: "/bin" };
+    assert.equal(takeKey(env), TEST_KEY);
+    assert.deepEqual(env, { PATH: "/bin" });
+    assert.equal(takeKey(env), undefined);
   });
 
   test("lives in the user's config directory", () => {
