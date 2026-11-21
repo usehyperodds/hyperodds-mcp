@@ -29,9 +29,6 @@ Claude Desktop installs Hyperodds as an extension: download
 from the latest release and open it. Claude Desktop lists the tools and adds them when you select
 Install. The extension is this bridge, and it runs on the Node.js that comes with Claude Desktop.
 
-Cursor, VS Code and LM Studio can add the hosted server with one click from the
-[MCP guide](https://usehyperodds.com/docs/mcp#install).
-
 To add the bridge by hand, Claude Desktop (Settings > Developer > Edit Config), Cursor
 (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) and Windsurf take this entry:
 
