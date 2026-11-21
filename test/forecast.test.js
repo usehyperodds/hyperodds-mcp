@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { checkDraft, DOMAIN, DOMAIN_SEPARATOR, digest, TYPE_HASHES, TYPES } from "../dist/forecast.js";
+import { DOMAIN_SEPARATOR, digest, forecastMessage, TYPE_HASHES } from "../dist/forecast.js";
 import { TEST_ADDRESS, vectors } from "./vectors.js";
 
 describe("forecast messages", () => {
@@ -26,99 +26,61 @@ describe("forecast messages", () => {
   });
 });
 
-describe("a draft's typed data", () => {
+describe("the message built for this computer's key", () => {
   const forecaster = TEST_ADDRESS.toLowerCase();
-  const entries = vectors[1].message.forecasts;
-  const nowMs = 1763719200_000;
-  const draft = (change = () => {}) => {
-    const td = {
-      domain: { ...DOMAIN },
-      types: structuredClone(TYPES.ForecastBatch),
-      primaryType: "ForecastBatch",
-      message: { ...structuredClone(vectors[1].message), forecaster },
-    };
-    change(td);
-    return td;
-  };
-  const check = (td, want = {}) => checkDraft(td, { forecaster, entries, nowMs, ...want });
+  const nowMs = 1763719200_999;
 
-  test("is signed as is when it is the contract's message for the forecasts asked for", () => {
-    assert.deepEqual(check(draft()), { type: "ForecastBatch", message: draft().message });
-    // A checksummed forecaster, the domain type spelled out, and one entry as a Forecast.
-    const spelled = draft((td) => {
-      td.message.forecaster = TEST_ADDRESS;
-      td.types = {
-        EIP712Domain: [
-          { name: "name", type: "string" },
-          { name: "version", type: "string" },
-        ],
-        ...td.types,
-      };
-    });
-    assert.equal(check(spelled).message.forecaster, TEST_ADDRESS);
-    const single = {
-      domain: DOMAIN,
-      types: TYPES.Forecast,
-      primaryType: "Forecast",
-      message: vectors[0].message,
+  test("is the contract's message for the forecasts asked for, timed now with a fresh nonce", () => {
+    const batch = forecastMessage(forecaster, vectors[1].message.forecasts, nowMs);
+    const { nonce, ...rest } = batch.message;
+    assert.equal(batch.type, "ForecastBatch");
+    assert.deepEqual(rest, { forecaster, forecasts: vectors[1].message.forecasts, time: 1763719200 });
+    assert.match(nonce, /^\d+$/);
+    assert.ok(BigInt(nonce) < 2n ** 63n);
+    // With the vector's nonce, it hashes to the vector's digest.
+    const fixed = {
+      ...batch,
+      message: { ...batch.message, forecaster: TEST_ADDRESS, nonce: vectors[1].message.nonce },
     };
-    assert.equal(check(single, { entries: [entries[0]] }).type, "Forecast");
-    assert.equal(
-      check(draft(), { entries: entries.map((e) => ({ ...e, note: "ignored" })) }).type,
-      "ForecastBatch",
+    assert.equal(bytesToHex(digest(fixed)), vectors[1].digest);
+
+    const one = forecastMessage(
+      forecaster,
+      [{ outcome: 42400, probabilityBps: 6200, note: "dropped" }],
+      nowMs,
     );
+    assert.equal(one.type, "Forecast");
+    assert.deepEqual(Object.keys(one.message).sort(), [
+      "forecaster",
+      "nonce",
+      "outcome",
+      "probabilityBps",
+      "time",
+    ]);
+
+    const nonces = new Set(
+      Array.from(
+        { length: 200 },
+        () => forecastMessage(forecaster, [vectors[0].message], nowMs).message.nonce,
+      ),
+    );
+    assert.equal(nonces.size, 200);
   });
 
-  const refusals = {
-    "another domain name": [(td) => (td.domain.name = "Hyperodds"), /domain/],
-    "another domain version": [(td) => (td.domain.version = "2"), /domain/],
-    "a chain id in the domain": [(td) => (td.domain.chainId = 1), /domain/],
-    "a verifying contract": [(td) => (td.domain.verifyingContract = TEST_ADDRESS), /domain/],
-    "an extra type": [(td) => (td.types.Transfer = [{ name: "to", type: "address" }]), /types/],
-    "an extra field": [(td) => td.types.ForecastBatch.push({ name: "amount", type: "uint256" }), /types/],
-    "a field of another type": [(td) => (td.types.ForecastEntry[1].type = "uint32"), /types/],
-    "fields in another order": [(td) => td.types.ForecastBatch.reverse(), /types/],
-    "a domain type with a chain id": [
-      (td) =>
-        (td.types.EIP712Domain = [
-          { name: "name", type: "string" },
-          { name: "chainId", type: "uint256" },
-        ]),
-      /types/,
-    ],
-    "another primary type": [(td) => (td.primaryType = "ForecastEntry"), /primary type/],
-    "a single forecast for two entries": [
-      (td) => {
-        td.primaryType = "Forecast";
-        td.types = TYPES.Forecast;
-      },
-      /primary type/,
-    ],
-    "another forecaster": [
-      (td) => (td.message.forecaster = "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf"),
-      /forecaster/,
-    ],
-    "another probability": [(td) => (td.message.forecasts[1].probabilityBps = 3101), /differ/],
-    "another outcome": [(td) => (td.message.forecasts[0].outcome = 42401), /differ/],
-    "the entries in another order": [(td) => td.message.forecasts.reverse(), /differ/],
-    "an entry left out": [(td) => td.message.forecasts.pop(), /differ/],
-    "an entry added": [(td) => td.message.forecasts.push({ outcome: 7, probabilityBps: 5000 }), /differ/],
-    "an extra field in an entry": [(td) => (td.message.forecasts[0].weight = 2), /differ/],
-    "an extra field in the message": [(td) => (td.message.expires = 0), /differ/],
-    "a time an hour off": [(td) => (td.message.time += 3600), /time/],
-    "a time that is not an integer": [(td) => (td.message.time = "1763719200"), /time/],
-    "a nonce past uint64": [(td) => (td.message.nonce = (2n ** 64n).toString()), /nonce/],
-    "a nonce as a number": [(td) => (td.message.nonce = 5), /nonce/],
-    "an extra top-level field": [(td) => (td.extra = {}), /other fields/],
-  };
-  for (const [name, [change, why]] of Object.entries(refusals)) {
-    test(`is refused with ${name}`, () => assert.throws(() => check(draft(change)), why));
-  }
-
-  test("is refused when there is none, or the request was not forecasts", () => {
-    assert.throws(() => check(null), /no typed data/);
-    assert.throws(() => check(draft(), { entries: [] }), /1 to 50/);
-    assert.throws(() => check(draft(), { entries: [{ outcome: 1, probabilityBps: 10_000 }] }), /1 to 50/);
-    assert.throws(() => check(draft(), { entries: [{ outcome: "1", probabilityBps: 5000 }] }), /1 to 50/);
+  test("is refused for forecasts it cannot sign", () => {
+    const entry = { outcome: 42400, probabilityBps: 6200 };
+    const bad = {
+      none: [],
+      "more than 50": Array.from({ length: 51 }, (_, i) => ({ ...entry, outcome: i })),
+      "a probability of 0": [{ ...entry, probabilityBps: 0 }],
+      "a probability of 10000": [{ ...entry, probabilityBps: 10_000 }],
+      "a fractional probability": [{ ...entry, probabilityBps: 62.5 }],
+      "an outcome as a string": [{ ...entry, outcome: "42400" }],
+      "a negative outcome": [{ ...entry, outcome: -1 }],
+      "an outcome past uint32": [{ ...entry, outcome: 2 ** 32 }],
+      "not a list": entry,
+    };
+    for (const [name, entries] of Object.entries(bad))
+      assert.throws(() => forecastMessage(forecaster, entries, nowMs), /1 to 50 of them/, name);
   });
 });

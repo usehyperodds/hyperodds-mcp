@@ -1,9 +1,9 @@
 /**
  * The forecast record's EIP-712 messages, as the contract fixes them: one domain, a Forecast and a
- * ForecastBatch. The bridge signs a draft's typed data only after `checkDraft` has matched it to
- * these types and to the forecasts the client asked for.
+ * ForecastBatch. The bridge builds them itself from the forecasts asked for, so it never signs typed
+ * data that came from a server.
  */
-import { isDeepStrictEqual } from "node:util";
+import { randomBytes } from "node:crypto";
 import { numberToBytesBE } from "@noble/curves/utils.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { concatBytes, utf8ToBytes } from "@noble/hashes/utils.js";
@@ -59,9 +59,6 @@ export const TYPES = {
 } satisfies Record<Signable["type"], Record<string, Field[]>>;
 
 export const MAX_BATCH = 50;
-/** How far a draft's `time` may sit from this computer's clock, either way. */
-const TIME_SLACK_S = 600;
-const UINT64_MAX = 2n ** 64n - 1n;
 
 const encodeType = (name: string, fields: Field[]) =>
   `${name}(${fields.map((f) => `${f.type} ${f.name}`).join(",")})`;
@@ -120,52 +117,18 @@ const isEntry = (e: unknown): e is Entry => {
 };
 
 /**
- * The draft's typed data as a message to sign, if it is exactly what was asked for: the contract's
- * domain and types, this forecaster, and the requested entries in their order, with a fresh time
- * and a uint64 nonce. Throws, naming the first difference, for anything else.
+ * The message for these forecasts, one as a Forecast and more as a ForecastBatch, timed by this
+ * computer's clock with a random 63-bit nonce (JSON-safe as a string, and never reused in practice).
  */
-export function checkDraft(
-  typedData: unknown,
-  want: { forecaster: string; entries: unknown; nowMs: number },
-): Signable {
-  const entries = want.entries;
+export function forecastMessage(forecaster: string, entries: unknown, nowMs: number): Signable {
   if (!Array.isArray(entries) || entries.length < 1 || entries.length > MAX_BATCH || !entries.every(isEntry))
-    throw new Error("the forecasts asked for are not 1 to 50 entries of an outcome and a probability");
-  if (typeof typedData !== "object" || typedData === null) throw new Error("it carries no typed data");
-  const td = typedData as Record<string, unknown>;
-  if (!isDeepStrictEqual(Object.keys(td).sort(), ["domain", "message", "primaryType", "types"]))
-    throw new Error("its typed data has other fields than domain, types, primaryType and message");
-  if (!isDeepStrictEqual(td.domain, DOMAIN))
-    throw new Error("its domain is not Hyperodds Forecasts version 1");
-  const type = td.primaryType;
-  if (type !== "ForecastBatch" && !(type === "Forecast" && entries.length === 1))
     throw new Error(
-      `its primary type does not fit ${entries.length === 1 ? "one forecast" : `${entries.length} forecasts`}`,
+      "Each forecast takes an outcome id and a probabilityBps from 1 to 9999, and one call takes 1 to 50 of them.",
     );
-  const types = { ...(td.types as object) } as Record<string, unknown>;
-  if (isDeepStrictEqual(types.EIP712Domain, DOMAIN_TYPE)) delete types.EIP712Domain;
-  if (!isDeepStrictEqual(types, TYPES[type]))
-    throw new Error(`its types are not the contract's ${type} types`);
-
-  const m = (td.message ?? {}) as Record<string, unknown>;
-  const { forecaster, time, nonce } = m;
-  if (typeof forecaster !== "string" || forecaster.toLowerCase() !== want.forecaster.toLowerCase())
-    throw new Error("it names another forecaster");
-  if (
-    typeof time !== "number" ||
-    !Number.isSafeInteger(time) ||
-    Math.abs(time - want.nowMs / 1000) > TIME_SLACK_S
-  )
-    throw new Error("its time is not within 10 minutes of this computer's clock");
-  if (typeof nonce !== "string" || !/^(0|[1-9]\d{0,19})$/.test(nonce) || BigInt(nonce) > UINT64_MAX)
-    throw new Error("its nonce is not a uint64 written as a decimal string");
-
+  const time = Math.floor(nowMs / 1000);
+  const nonce = (randomBytes(8).readBigUInt64BE() >> 1n).toString();
   const forecasts = entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
-  const signable: Signable =
-    type === "Forecast"
-      ? { type, message: { forecaster, ...forecasts[0]!, time, nonce } }
-      : { type, message: { forecaster, forecasts, time, nonce } };
-  if (!isDeepStrictEqual(m, signable.message))
-    throw new Error("its forecasts differ from the ones asked for");
-  return signable;
+  return forecasts.length === 1
+    ? { type: "Forecast", message: { forecaster, ...forecasts[0]!, time, nonce } }
+    : { type: "ForecastBatch", message: { forecaster, forecasts, time, nonce } };
 }

@@ -77,6 +77,8 @@ const bridge = new Bridge({
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
   keys: signs ? { env: envKey, path: keyPath(), log } : undefined,
+  // A hand-set api.example.com publishes records on example.com; any other server on its own origin.
+  webOrigin: target.href === DEFAULT_URL ? "https://usehyperodds.com" : target.origin.replace("//api.", "//"),
 });
 
 if (process.stdin.isTTY)

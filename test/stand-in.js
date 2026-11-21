@@ -48,20 +48,19 @@ export function recover(type, message, signature) {
   return `0x${bytesToHex(keccak_256(publicKey.subarray(1)).subarray(12))}`;
 }
 
-/**
- * `tamper` may change a draft's typed data before it goes out, as a server that is not to be
- * trusted would. `now` is the stand-in's clock in milliseconds.
- */
-export function standIn({ web = "https://usehyperodds.com", tamper = (td) => td, now = Date.now } = {}) {
+/** `now` is the stand-in's clock in milliseconds. */
+export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {}) {
   const used = new Set();
   const pending = new Map();
   const recorded = [];
+  const drafts = [];
   let batch = 0;
 
   function draft({ forecasts, forecaster }) {
     const time = Math.floor(now() / 1000);
     const nonce = (randomBytes(8).readBigUInt64BE() >> 1n).toString();
     const id = randomBytes(16).toString("base64url");
+    drafts.push(id);
     let typedData = null;
     if (forecaster) {
       typedData =
@@ -78,7 +77,6 @@ export function standIn({ web = "https://usehyperodds.com", tamper = (td) => td,
               primaryType: "ForecastBatch",
               message: { forecaster, forecasts, time, nonce },
             };
-      typedData = tamper(structuredClone(typedData));
     }
     return ok({
       status: "draft",
@@ -138,7 +136,7 @@ export function standIn({ web = "https://usehyperodds.com", tamper = (td) => td,
     return reply(call(name, args));
   }
 
-  return { recorded, answer };
+  return { recorded, drafts, answer };
 }
 
 /** Serves a stand-in at /mcp over HTTP; resolves to its URL and a way to stop it. */
