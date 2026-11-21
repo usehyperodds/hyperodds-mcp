@@ -25,6 +25,35 @@ function run(input, env = {}, args = []) {
   });
 }
 
+/** Sends one request and resolves with the first line the CLI answers and its stderr so far. */
+function ask(message, env) {
+  return new Promise((done, fail) => {
+    const proc = spawn(process.execPath, [cli], { env: { ...process.env, ...env } });
+    let stdout = "";
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      stderr += d;
+    });
+    proc.stdout.on("data", (d) => {
+      stdout += d;
+      if (!stdout.includes("\n")) return;
+      proc.stdin.end();
+      done({ answer: JSON.parse(stdout.split("\n")[0]), stderr });
+    });
+    proc.on("close", (code) => fail(new Error(`exited with ${code} before answering: ${stderr}`)));
+    proc.stdin.write(`${JSON.stringify(message)}\n`);
+  });
+}
+
+// Proxy settings from the environment running the tests would change what the CLI does.
+const noProxy = {
+  HTTPS_PROXY: undefined,
+  https_proxy: undefined,
+  HTTP_PROXY: undefined,
+  http_proxy: undefined,
+  NODE_USE_ENV_PROXY: undefined,
+};
+
 describe("hyperodds-mcp", () => {
   let server;
   let url;
@@ -135,5 +164,25 @@ describe("hyperodds-mcp", () => {
     assert.match(ftp.stderr, /must be an http or https URL/);
     assert.equal((await run("", { HYPERODDS_MCP_URL: "https://exa mple.com" })).code, 2);
     assert.equal((await run("", { HYPERODDS_MCP_URL: url.replace("http:", "HTTP:") })).code, 0);
+  });
+
+  test("refuses a server URL with a username or password, and never repeats a secret", async () => {
+    const login = await run("", { HYPERODDS_MCP_URL: "https://user:s3cret@example.com/mcp" });
+    assert.equal(login.code, 2);
+    assert.equal(
+      login.stderr,
+      "hyperodds-mcp: HYPERODDS_MCP_URL must not contain a username or password. Run with --help for usage.\n",
+    );
+    const typo = await run("", { HYPERODDS_MCP_URL: "https//user:s3cret@example.com/mcp" });
+    assert.equal(typo.code, 2);
+    assert.doesNotMatch(typo.stderr, /s3cret/);
+
+    // Nothing listens on port 1. The error names the server without its query string.
+    const keyed = await ask(
+      { jsonrpc: "2.0", id: 1, method: "ping" },
+      { ...noProxy, HYPERODDS_MCP_URL: "http://127.0.0.1:1/mcp?key=s3cret" },
+    );
+    assert.match(keyed.answer.error.message, /^Could not reach http:\/\/127\.0\.0\.1:1\/mcp \(set by/);
+    assert.doesNotMatch(JSON.stringify(keyed), /s3cret/);
   });
 });
