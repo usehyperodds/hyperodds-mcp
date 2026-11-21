@@ -65,7 +65,7 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 ## What to ask
 
 - "Which HIP-4 markets show the biggest edge after fees right now?"
-- "Is the next Fed decision priced the same on every deployer, and do their rules match?"
+- "How is the next Fed decision priced?"
 - "Where does the fair line for the BTC markets settling today come from, and how confident is it?"
 - "What was listed in the last hour?"
 
@@ -74,7 +74,7 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 | Tool           | Input                                                                                                    | Output                                                                                                                                                                        |
 | -------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `odds_markets` | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total                                                   |
-| `odds_cluster` | `id`, or the `outcome` of any member                                                                     | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                                |
+| `odds_cluster` | `id`, or the `outcome` of any member                                                                     | For a question more than one deployer lists: each listing's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                            |
 | `odds_fair`    | `outcome`                                                                                                | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
 | `odds_new`     | `category`, `limit` (up to 100), `offset`                                                                | Markets in listing order, newest first, with the same fields as `odds_markets`                                                                                                |
 
