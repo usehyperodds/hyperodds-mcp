@@ -10,8 +10,8 @@ const DEFAULT_URL = "https://api.usehyperodds.com/mcp";
 const USAGE = `hyperodds-mcp ${version}
 
 Connects an MCP client on stdio to Hyperodds: data on Hyperliquid HIP-4 outcome markets, and
-forecasts entered in Hyperodds' public record, signed on this computer. Add it to your client
-with the command: npx -y @hyperodds/mcp
+forecasts for Hyperodds' public record, signed on this computer. Add it to your client with the
+command: npx -y @hyperodds/mcp
 
 Options:
   -h, --help                  show this help
@@ -19,11 +19,11 @@ Options:
 
 Environment:
   HYPERODDS_MCP_URL           server to forward to (default ${DEFAULT_URL})
-  HYPERODDS_FORECAST_KEY      the forecaster's private key, 64 hex digits (default: a key made on
-                              the first forecast and kept in ${keyPath()})
+  HYPERODDS_FORECAST_KEY      private key made for forecasts, 64 hex digits (default: the key
+                              made on the first forecast, kept in ${keyPath()})
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
-  HYPERODDS_SITE_URL          the site with a hand-set server's forecast records, for links to
-                              them (the hosted server's is https://usehyperodds.com)
+  HYPERODDS_SITE_URL          site that publishes the server's forecast records, for links to
+                              them (default https://usehyperodds.com with the hosted server)
   HTTPS_PROXY                 proxy for an https server
   HTTP_PROXY                  proxy for an http server
   NO_PROXY                    hosts to reach without the proxy
@@ -68,7 +68,6 @@ if (siteSetting) {
   site = origin;
 } else if (target.hostname === "api.usehyperodds.com") site = "https://usehyperodds.com";
 
-// Taken out of the environment at once, so nothing else in the process finds the key there.
 const envKey = takeKey();
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))

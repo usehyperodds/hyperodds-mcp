@@ -278,8 +278,8 @@ describe("forecasts signed on this computer", () => {
   const ten = Array.from({ length: 10 }, (_, i) => ({ outcome: 42400 + i, probabilityBps: 1000 + 800 * i }));
 
   /**
-   * A bridge on the stand-in server, with its own config directory unless `keys` is given. The
-   * stand-in's answers carry a Date header from its own clock, as a real server's do.
+   * A bridge on the stand-in server, with a config directory of its own. The stand-in's answers
+   * carry a Date header from its own clock, as a real server's do.
    */
   function signing(options = {}, keys = {}, more = {}) {
     const server = standIn(options);
@@ -295,7 +295,7 @@ describe("forecasts signed on this computer", () => {
     return { ...h, server, path, dir, call };
   }
 
-  test("one call builds the forecasts' message here, signs it and records it, with no draft", async () => {
+  test("signs and records the forecasts in one call, with no draft", async () => {
     const h = signing();
     const before = Math.floor(Date.now() / 1000);
     await h.call(1, "odds_forecast", { forecasts: ten });
@@ -343,7 +343,7 @@ describe("forecasts signed on this computer", () => {
     assert.equal(h.logs.length, 1);
   });
 
-  test("uses HYPERODDS_FORECAST_KEY when it is set, and keeps it out of everything", async () => {
+  test("uses HYPERODDS_FORECAST_KEY when it is set, and never sends or logs it", async () => {
     const key = randomBytes(32).toString("hex");
     const h = signing({}, { env: key });
     await h.call(1, "odds_forecast", { forecasts: ten.slice(0, 2) });
@@ -373,7 +373,7 @@ describe("forecasts signed on this computer", () => {
     );
   });
 
-  test("refuses forecasts it cannot sign with the server's codes, and sends nothing", async () => {
+  test("refuses forecasts it cannot sign, with the server's codes, and sends nothing", async () => {
     const h = signing();
     await h.call(1, "odds_forecast", { forecasts: [{ outcome: 42400, probabilityBps: 0 }] });
     await h.call(2, "odds_forecast", {
@@ -404,7 +404,7 @@ describe("forecasts signed on this computer", () => {
     assert.deepEqual(result.content, [
       {
         type: "text",
-        text: "Hyperodds refused the forecasts' time: this computer's clock is about 14 minutes ahead. Set this computer's clock to the correct time, then enter the forecasts again.",
+        text: "Hyperodds refused the forecasts: this computer's clock is about 14 minutes ahead. Set it to the correct time, then enter the forecasts again.",
       },
     ]);
 
@@ -510,7 +510,7 @@ describe("forecasts signed on this computer", () => {
     assert.equal(result.content[0].text, "One or more forecasts were refused.");
     assert.equal(
       result.content[1].text,
-      `Nothing was entered: Hyperodds already has a forecast from this forecaster on outcomes ${ten[0].outcome}, ${ten[1].outcome} signed later than this one, from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`,
+      `Nothing was entered. Hyperodds already has a forecast from this forecaster on outcomes ${ten[0].outcome}, ${ten[1].outcome}, signed later than this call's. It came from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`,
     );
   });
 
@@ -548,7 +548,7 @@ describe("forecasts signed on this computer", () => {
     assert.equal(replay.out[1].result.structuredContent.code, "replayed");
   });
 
-  test("leaves calls alone that it does not sign", async () => {
+  test("leaves alone the calls it does not sign", async () => {
     const h = signing({}, { env: TEST_KEY });
     const other = "0x2b5ad5c4795c026514f8317c7a215e218dccd6cf";
     const signed = { type: "Forecast", message: {}, signature: "0x" };

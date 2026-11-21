@@ -3,8 +3,8 @@
  * HTTP and keeps no session: every message from the client goes out as one POST. Hyperodds
  * answers with JSON; event streams are read too, since the protocol lets any server answer that way.
  *
- * With a forecaster key, the bridge also signs forecasts: it turns an odds_forecast call into a
- * message for this computer's forecaster, signs it here and records it.
+ * With a forecaster key, the bridge also signs forecasts here: an odds_forecast call goes to the
+ * server as a message the bridge built and signed itself.
  */
 import { dirname, join } from "node:path";
 import { checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
@@ -201,9 +201,8 @@ export class Bridge {
   }
 
   /**
-   * Builds the message for the forecasts asked for under this computer's forecaster, signs it and
-   * records it, in one request. A forecaster named by the client that is not this computer's gets
-   * the hosted flow: a draft with a sign link for that wallet.
+   * Signs the forecasts here. A forecaster the client names that isn't this computer's goes to the
+   * server as is, for a sign link to that wallet.
    */
   private async forecast(msg: Message, id: Id, args: Json, keys: KeySource, signal: AbortSignal) {
     let signer: Signer | null;
@@ -387,7 +386,7 @@ function explained(result: Result, signedS: number, serverMs: number): Result {
     .map((e) => (e as Json).outcome);
   if (late.length === 0 || !Array.isArray(result.content)) return result;
   const which = late.length === 1 ? `outcome ${late[0]}` : `outcomes ${late.join(", ")}`;
-  const text = `Nothing was entered: Hyperodds already has a forecast from this forecaster on ${which} signed later than this one, from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`;
+  const text = `Nothing was entered. Hyperodds already has a forecast from this forecaster on ${which}, signed later than this call's. It came from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`;
   return { ...result, content: [...result.content, { type: "text", text }] };
 }
 
@@ -396,13 +395,13 @@ function explained(result: Result, signedS: number, serverMs: number): Result {
  * Date header of the server's refusal, when it sent one.
  */
 function clockText(signedS: number, serverMs: number): string {
-  const fix = "Set this computer's clock to the correct time, then enter the forecasts again.";
+  const fix = "Set it to the correct time, then enter the forecasts again.";
   if (!Number.isFinite(serverMs))
-    return `Hyperodds refused the forecasts' time, so this computer's clock is likely more than 10 minutes off. ${fix}`;
+    return `Hyperodds refused the forecasts' signed time, so this computer's clock is likely more than 10 minutes off. ${fix}`;
   const gapS = Math.round(signedS - serverMs / 1000);
   const size =
     Math.abs(gapS) < 120 ? `${Math.abs(gapS)} seconds` : `${Math.round(Math.abs(gapS) / 60)} minutes`;
-  return `Hyperodds refused the forecasts' time: this computer's clock is about ${size} ${gapS > 0 ? "ahead" : "behind"}. ${fix}`;
+  return `Hyperodds refused the forecasts: this computer's clock is about ${size} ${gapS > 0 ? "ahead" : "behind"}. ${fix}`;
 }
 
 function failureText(error: unknown, reason: unknown, opts: BridgeOptions, timeoutMs: number): string {
