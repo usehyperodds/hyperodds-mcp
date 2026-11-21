@@ -1,6 +1,7 @@
 // A stand-in for the hosted server's forecast tools, as docs/feature/forecasts.md in the Hyperodds
 // repository fixes them: drafts with typed data when a forecaster is named, signed submissions
-// checked by signature and nonce, and each forecaster's pending count.
+// checked by signature (low s only), time window, nonce and signed-time order, and each
+// forecaster's pending count.
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
@@ -40,6 +41,12 @@ const refusal = (code, error) => ({
   isError: true,
 });
 
+const HALF_N = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0n;
+
+/** The `s` of a 65-byte r ‖ s ‖ v signature. */
+export const sOf = (signature) => BigInt(`0x${signature.slice(66, 130)}`);
+export const lowS = (signature) => sOf(signature) <= HALF_N;
+
 export function recover(type, message, signature) {
   const bytes = hexToBytes(signature.slice(2));
   const sig = Uint8Array.of(bytes[64] - 27, ...bytes.subarray(0, 64));
@@ -51,6 +58,7 @@ export function recover(type, message, signature) {
 /** `now` is the stand-in's clock in milliseconds. */
 export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {}) {
   const used = new Set();
+  const latest = new Map();
   const pending = new Map();
   const recorded = [];
   const drafts = [];
@@ -92,13 +100,26 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {
 
   function submit({ type, message, signature }) {
     const forecaster = message.forecaster.toLowerCase();
-    if (recover(type, message, signature) !== forecaster)
+    if (!lowS(signature) || recover(type, message, signature) !== forecaster)
       return refusal("bad_signature", "The signature does not match the forecaster.");
     if (Math.abs(message.time - now() / 1000) > 600) return refusal("stale_time", "The time is stale.");
     if (used.has(`${forecaster}:${message.nonce}`))
       return refusal("replayed", "This nonce was already used by this forecaster.");
-    used.add(`${forecaster}:${message.nonce}`);
     const entries = type === "Forecast" ? [message] : message.forecasts;
+    const late = entries
+      .map(({ outcome }, index) => ({ index, outcome }))
+      .filter(({ outcome }) => message.time <= (latest.get(`${forecaster}:${outcome}`) ?? -1));
+    if (late.length > 0)
+      return {
+        content: [{ type: "text", text: "One or more forecasts were refused." }],
+        structuredContent: {
+          code: "entries_refused",
+          entries: late.map((e) => ({ ...e, code: "out_of_order", error: "A later forecast is recorded." })),
+        },
+        isError: true,
+      };
+    used.add(`${forecaster}:${message.nonce}`);
+    for (const { outcome } of entries) latest.set(`${forecaster}:${outcome}`, message.time);
     batch++;
     const forecasts = entries.map(({ outcome, probabilityBps }) => {
       recorded.push({ forecaster, outcome, probabilityBps, batch, signature });

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
 import { Bridge } from "../dist/bridge.js";
 import { openKey } from "../dist/key.js";
@@ -350,7 +350,8 @@ describe("forecasts signed on this computer", () => {
     const { forecaster } = h.out[0].result.structuredContent;
     assert.equal(forecaster, openKey({ env: key, path: h.path, log: assert.fail }, false).address);
     assert.equal(h.server.recorded.length, 2);
-    assert.throws(() => readdirSync(h.dir), { code: "ENOENT" });
+    // No key file is made; only the signed times go beside where it would be.
+    assert.deepEqual(readdirSync(join(h.dir, "hyperodds")), ["forecast-times.json"]);
     assert.ok(!JSON.stringify([h.out, h.logs, h.sent]).toLowerCase().includes(key));
     assert.deepEqual(h.logs, []);
   });
@@ -416,6 +417,94 @@ describe("forecasts signed on this computer", () => {
       params: { name: "odds_forecast", arguments: { forecasts: ten } },
     });
     assert.match(undated.out[0].result.content[0].text, /clock is likely more than 10 minutes off\./);
+  });
+
+  test("signs a quick revision later than the last forecast on its outcomes, across restarts", async () => {
+    const frozen = 1763719200_400;
+    const h = signing({ now: () => frozen }, {}, { now: () => frozen });
+    const times = () => h.sent.map((x) => x.body.params.arguments.signed.message.time);
+    await h.call(1, "odds_forecast", { forecasts: ten });
+    await h.call(2, "odds_forecast", { forecasts: [{ outcome: ten[3].outcome, probabilityBps: 4000 }] });
+    await h.call(3, "odds_forecast", { forecasts: [{ outcome: 1, probabilityBps: 4000 }] });
+    assert.deepEqual(times(), [1763719200, 1763719201, 1763719200]);
+    assert.ok(h.out.every((m) => m.result.structuredContent.status === "recorded"));
+
+    // A new bridge on the same key, as after a restart, with the clock stepped back 30 seconds.
+    const file = join(dirname(h.path), "forecast-times.json");
+    if (process.platform !== "win32") assert.equal(statSync(file).mode & 0o777, 0o600);
+    const again = harness((body) => json(h.server.answer(body)), undefined, "Hyperodds", {
+      keys: { path: h.path, log: () => {} },
+      now: () => frozen - 30_000,
+    });
+    await again.send({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "odds_forecast", arguments: { forecasts: ten.slice(2, 5) } },
+    });
+    assert.equal(again.sent[0].body.params.arguments.signed.message.time, 1763719202);
+    assert.equal(again.out[0].result.structuredContent.status, "recorded");
+  });
+
+  test("a refused forecast leaves its time free", async () => {
+    const closed = {
+      content: [{ type: "text", text: "Forecasts on this market closed an hour before its cutoff." }],
+      structuredContent: {
+        code: "entries_refused",
+        entries: [{ index: 0, outcome: 42400, code: "past_close" }],
+      },
+      isError: true,
+    };
+    const path = join(work, String(++homes), "forecaster.key");
+    const h = harness(
+      (body) => json({ jsonrpc: "2.0", id: body.id, result: closed }),
+      undefined,
+      "Hyperodds",
+      {
+        keys: { path, log: () => {} },
+        now: () => 1763719200_000,
+      },
+    );
+    const call = {
+      jsonrpc: "2.0",
+      method: "tools/call",
+      params: { name: "odds_forecast", arguments: { forecasts: ten } },
+    };
+    await h.send({ ...call, id: 1 }, { ...call, id: 2 });
+    assert.deepEqual(
+      h.sent.map((x) => x.body.params.arguments.signed.message.time),
+      [1763719200, 1763719200],
+    );
+  });
+
+  test("says in plain words when a forecast signed later is already recorded", async () => {
+    // Another computer with the same key and a clock a minute ahead forecasts first.
+    const server = standIn();
+    const key = randomBytes(32).toString("hex");
+    const bridgeOn = (now) =>
+      harness((body) => json(server.answer(body)), undefined, "Hyperodds", {
+        keys: { env: key, path: join(work, String(++homes), "forecaster.key"), log: () => {} },
+        now,
+      });
+    const call = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "odds_forecast", arguments: { forecasts: ten.slice(0, 2) } },
+    };
+    const ahead = bridgeOn(() => Date.now() + 60_000);
+    await ahead.send(call);
+    assert.equal(ahead.out[0].result.structuredContent.status, "recorded");
+
+    const here = bridgeOn(Date.now);
+    await here.send(call);
+    const { result } = here.out[0];
+    assert.equal(result.isError, true);
+    assert.equal(result.content[0].text, "One or more forecasts were refused.");
+    assert.equal(
+      result.content[1].text,
+      `Nothing was entered: Hyperodds already has a forecast from this forecaster on outcomes ${ten[0].outcome}, ${ten[1].outcome} signed later than this one, from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`,
+    );
   });
 
   test("passes the server's other refusals through as they are", async () => {

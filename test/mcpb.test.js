@@ -110,6 +110,7 @@ describe("Claude Desktop extension", () => {
         "dist/forecast.js",
         "dist/key.js",
         "dist/proxy.js",
+        "dist/times.js",
         "icon-dark.png",
         "icon-light.png",
         "icon.png",

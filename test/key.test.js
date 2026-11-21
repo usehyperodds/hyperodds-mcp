@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -21,6 +22,18 @@ describe("forecaster key", () => {
     const signer = openKey({ env: TEST_KEY, path: freshPath(), log: assert.fail }, true);
     assert.equal(signer.address, TEST_ADDRESS);
     for (const v of vectors) assert.equal(signer.sign(digest(v)), v.signature, v.type);
+  });
+
+  test("signs with a low s and v of 27 or 28, as the server requires", () => {
+    // n / 2 for secp256k1: the server refuses an s above it, so no forecast has two valid signatures.
+    const half = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0n;
+    const signer = openKey({ path: freshPath(), ...quiet }, true);
+    for (let i = 0; i < 300; i++) {
+      const signature = signer.sign(randomBytes(32));
+      assert.match(signature, /^0x[0-9a-f]{128}(1b|1c)$/);
+      assert.ok(BigInt(`0x${signature.slice(66, 130)}`) <= half);
+    }
+    for (const v of vectors) assert.ok(BigInt(`0x${v.signature.slice(66, 130)}`) <= half);
   });
 
   test("is made on first use in a file only its owner can read, then read back", () => {

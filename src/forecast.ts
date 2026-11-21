@@ -116,18 +116,21 @@ const isEntry = (e: unknown): e is Entry => {
   );
 };
 
-/**
- * The message for these forecasts, one as a Forecast and more as a ForecastBatch, timed by this
- * computer's clock with a random 63-bit nonce (JSON-safe as a string, and never reused in practice).
- */
-export function forecastMessage(forecaster: string, entries: unknown, nowMs: number): Signable {
+/** The forecasts asked for, if they can be signed: 1 to 50, each an outcome id and a probabilityBps. */
+export function checkEntries(entries: unknown): Entry[] {
   if (!Array.isArray(entries) || entries.length < 1 || entries.length > MAX_BATCH || !entries.every(isEntry))
     throw new Error(
       "Each forecast takes an outcome id and a probabilityBps from 1 to 9999, and one call takes 1 to 50 of them.",
     );
-  const time = Math.floor(nowMs / 1000);
+  return entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
+}
+
+/**
+ * The message for these forecasts, one as a Forecast and more as a ForecastBatch, signed at `time`
+ * (Unix seconds) with a random 63-bit nonce, JSON-safe as a string and never reused in practice.
+ */
+export function forecastMessage(forecaster: string, forecasts: Entry[], time: number): Signable {
   const nonce = (randomBytes(8).readBigUInt64BE() >> 1n).toString();
-  const forecasts = entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
   return forecasts.length === 1
     ? { type: "Forecast", message: { forecaster, ...forecasts[0]!, time, nonce } }
     : { type: "ForecastBatch", message: { forecaster, forecasts, time, nonce } };

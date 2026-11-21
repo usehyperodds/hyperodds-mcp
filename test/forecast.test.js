@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { DOMAIN_SEPARATOR, digest, forecastMessage, TYPE_HASHES } from "../dist/forecast.js";
+import { checkEntries, DOMAIN_SEPARATOR, digest, forecastMessage, TYPE_HASHES } from "../dist/forecast.js";
 import { TEST_ADDRESS, vectors } from "./vectors.js";
 
 describe("forecast messages", () => {
@@ -28,10 +28,9 @@ describe("forecast messages", () => {
 
 describe("the message built for this computer's key", () => {
   const forecaster = TEST_ADDRESS.toLowerCase();
-  const nowMs = 1763719200_999;
 
-  test("is the contract's message for the forecasts asked for, timed now with a fresh nonce", () => {
-    const batch = forecastMessage(forecaster, vectors[1].message.forecasts, nowMs);
+  test("is the contract's message for the forecasts asked for, at the time given, with a fresh nonce", () => {
+    const batch = forecastMessage(forecaster, checkEntries(vectors[1].message.forecasts), 1763719200);
     const { nonce, ...rest } = batch.message;
     assert.equal(batch.type, "ForecastBatch");
     assert.deepEqual(rest, { forecaster, forecasts: vectors[1].message.forecasts, time: 1763719200 });
@@ -46,8 +45,8 @@ describe("the message built for this computer's key", () => {
 
     const one = forecastMessage(
       forecaster,
-      [{ outcome: 42400, probabilityBps: 6200, note: "dropped" }],
-      nowMs,
+      checkEntries([{ outcome: 42400, probabilityBps: 6200, note: "dropped" }]),
+      1763719200,
     );
     assert.equal(one.type, "Forecast");
     assert.deepEqual(Object.keys(one.message).sort(), [
@@ -61,13 +60,13 @@ describe("the message built for this computer's key", () => {
     const nonces = new Set(
       Array.from(
         { length: 200 },
-        () => forecastMessage(forecaster, [vectors[0].message], nowMs).message.nonce,
+        () => forecastMessage(forecaster, checkEntries([vectors[0].message]), 1763719200).message.nonce,
       ),
     );
     assert.equal(nonces.size, 200);
   });
 
-  test("is refused for forecasts it cannot sign", () => {
+  test("is never built for forecasts it cannot sign", () => {
     const entry = { outcome: 42400, probabilityBps: 6200 };
     const bad = {
       none: [],
@@ -81,6 +80,6 @@ describe("the message built for this computer's key", () => {
       "not a list": entry,
     };
     for (const [name, entries] of Object.entries(bad))
-      assert.throws(() => forecastMessage(forecaster, entries, nowMs), /1 to 50 of them/, name);
+      assert.throws(() => checkEntries(entries), /1 to 50 of them/, name);
   });
 });

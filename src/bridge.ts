@@ -6,8 +6,10 @@
  * With a forecaster key, the bridge also signs forecasts: it turns an odds_forecast call into a
  * message for this computer's forecaster, signs it here and records it.
  */
-import { digest, forecastMessage, type Signable } from "./forecast.js";
+import { dirname, join } from "node:path";
+import { checkEntries, digest, type Entry, forecastMessage } from "./forecast.js";
 import { type KeySource, openKey, type Signer } from "./key.js";
+import { SignedTimes } from "./times.js";
 
 type Id = string | number;
 type Json = Record<string, unknown>;
@@ -94,9 +96,13 @@ export class Bridge {
   private readonly open = new Map<Id | symbol, AbortController>();
   private readonly pending = new Set<Promise<void>>();
 
+  private readonly times?: SignedTimes;
+
   constructor(private readonly opts: BridgeOptions) {
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.fetch = opts.fetch ?? fetch;
+    if (opts.keys)
+      this.times = new SignedTimes(join(dirname(opts.keys.path), "forecast-times.json"), opts.keys.log);
   }
 
   /** Takes one line from the client. Requests run side by side; answers go out as they arrive. */
@@ -210,27 +216,32 @@ export class Bridge {
     )
       return this.send(msg, id, signal);
 
-    let signable: Signable;
+    let entries: Entry[];
     try {
-      signable = forecastMessage(signer.address, args.forecasts, (this.opts.now ?? Date.now)());
+      entries = checkEntries(args.forecasts);
     } catch (error) {
       return toolError(id, (error as Error).message);
     }
+    const nowMs = (this.opts.now ?? Date.now)();
+    const outcomes = entries.map((e) => e.outcome);
+    const times = this.times!;
+    const signable = forecastMessage(signer.address, entries, times.next(signer.address, outcomes, nowMs));
     const signed = { ...signable, signature: signer.sign(digest(signable)) };
     let serverMs = Number.NaN;
-    const recorded = await this.send(withArguments(msg, { signed }), id, signal, (headers) => {
-      serverMs = Date.parse(headers.get("date") ?? "");
-    });
+    let recorded: Message | null = null;
+    try {
+      recorded = await this.send(withArguments(msg, { signed }), id, signal, (headers) => {
+        serverMs = Date.parse(headers.get("date") ?? "");
+      });
+    } finally {
+      // A refusal spends nothing, so its time stays free. Anything else, an answer lost on the way
+      // included, may have been recorded.
+      if (recorded?.error === undefined && !recorded?.result?.isError)
+        times.record(signer.address, outcomes, signable.message.time, nowMs);
+    }
     const result = recorded?.result;
     if (!result) return recorded;
-    if (result.isError) {
-      const refusal = result.structuredContent;
-      if (!isRecord(refusal) || refusal.code !== "stale_time") return recorded;
-      return {
-        ...recorded,
-        result: { ...result, content: [{ type: "text", text: clockText(signable.message.time, serverMs) }] },
-      };
-    }
+    if (result.isError) return { ...recorded, result: explained(result, signable.message.time, serverMs) };
     const record = new URL(`/forecasts/${signer.address}`, this.opts.webOrigin ?? "https://usehyperodds.com");
     if (Array.isArray(result.content))
       result.content.push({
@@ -347,8 +358,25 @@ function annotate(response: Message): void {
   }
 }
 
+type Result = NonNullable<Message["result"]>;
+
+/** A refusal of signed forecasts, with plain words for the two that come from clocks. */
+function explained(result: Result, signedS: number, serverMs: number): Result {
+  const refusal = result.structuredContent;
+  if (!isRecord(refusal)) return result;
+  if (refusal.code === "stale_time")
+    return { ...result, content: [{ type: "text", text: clockText(signedS, serverMs) }] };
+  const late = (Array.isArray(refusal.entries) ? refusal.entries : [])
+    .filter((e) => isRecord(e) && e.code === "out_of_order")
+    .map((e) => (e as Json).outcome);
+  if (late.length === 0 || !Array.isArray(result.content)) return result;
+  const which = late.length === 1 ? `outcome ${late[0]}` : `outcomes ${late.join(", ")}`;
+  const text = `Nothing was entered: Hyperodds already has a forecast from this forecaster on ${which} signed later than this one, from another app or computer using the same key, or from a clock that was ahead. The forecast signed latest is the one that counts. Check that this computer's clock is right, then enter the forecasts again.`;
+  return { ...result, content: [...result.content, { type: "text", text }] };
+}
+
 /**
- * Why the server refused a forecast's time: this computer's clock is off. The gap comes from the
+ * Why the server refused the forecasts' time: this computer's clock is off. The gap comes from the
  * Date header of the server's refusal, when it sent one.
  */
 function clockText(signedS: number, serverMs: number): string {
