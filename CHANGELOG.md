@@ -9,7 +9,12 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 - A Claude Desktop extension, `hyperodds.mcpb`, attached to each GitHub release. Open it in Claude
   Desktop to install the bridge with one click; it runs on the Node.js that comes with Claude
-  Desktop. The npm package is unchanged.
+  Desktop.
+
+### Changed
+
+- When the server turns away a notification without a JSON-RPC answer, the server log says so with
+  the HTTP status. Before, the failure went unrecorded.
 
 ## [0.1.1] - 2026-11-04
 
