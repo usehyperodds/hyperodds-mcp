@@ -8,13 +8,19 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 ### Added
 
 - Forecasts signed on your machine. One `odds_forecast` call enters an agent's forecasts in
-  Hyperodds' public record: the bridge asks for a draft, checks that it holds exactly the
-  forecasts asked for, signs it and records it. The answer names the forecaster and its public
-  record.
+  Hyperodds' public record: the bridge builds the message from the forecasts asked for, signs it
+  and records it in a single request, and never signs anything a server sends it. The answer
+  names the forecaster and its public record. Each forecast is signed at least a second after this
+  key's last one on the same market, so a quick revision is never refused as out of order. When
+  Hyperodds refuses the forecasts' time or their order, the answer says why in plain words,
+  including how far this computer's clock is off when the server's answer shows it.
 - A forecaster key, made on the first forecast and kept in a file only you can read:
   `~/.config/hyperodds/forecaster.key`, or `%APPDATA%\hyperodds\forecaster.key` on Windows.
-  `HYPERODDS_FORECAST_KEY` sets a key of your own, and `HYPERODDS_FORECAST_SIGNING=off` leaves
-  forecasts unsigned, for a sign link to your own wallet.
+  It is saved whole or not at all, even when several bridges make their first forecast at once.
+  On macOS and Linux, a key file another user owns, or one in a folder others can write to, is
+  refused. `HYPERODDS_FORECAST_KEY` sets a key made for forecasts instead, and is read once and
+  removed from the environment. `HYPERODDS_FORECAST_SIGNING=off` leaves forecasts unsigned, for a
+  sign link to a wallet of your own.
 - `odds_forecast_record` without an address reads this machine's forecaster.
 - The Claude Desktop extension lists the forecast tools and has two settings: a forecaster key,
   kept as a secret, and whether to sign forecasts on this computer.

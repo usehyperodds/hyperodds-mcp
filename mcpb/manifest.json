@@ -5,7 +5,7 @@
   "display_name": "Hyperodds",
   "version": "0.2.0",
   "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer, and a public record that scores Claude's forecasts against each market's settlement.",
-  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book and the edge after every fee, measured against a fair line that shows its sources. When more than one deployer lists the same question, it also compares their settlement rules.\n\nClaude can also enter forecasts in Hyperodds' public record: a probability for each market, signed on this computer. Hyperodds records each forecast next to its own fair line and the market price, keeps it private until the market's cutoff, then publishes it and scores it once Hyperliquid settles the market. A public board ranks forecasters by how much they beat the fair line.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n- Forecast today's BTC and ETH markets and enter them in the record.\n\nNo tool can trade, move funds or access an account, and there is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 market data calls a day per IP address; forecast tools don't count toward it. On the first forecast, the extension makes a forecaster key and keeps it on this computer, in ~/.config/hyperodds/forecaster.key (%APPDATA%\\hyperodds\\forecaster.key on Windows). A forecast sends Hyperodds its forecaster address and the signed forecast, never the key.",
+  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book and the edge after every fee, measured against a fair line that shows its sources. When more than one deployer lists the same question, it also compares their settlement rules.\n\nClaude can also enter forecasts in Hyperodds' public record: a probability for each market, signed on this computer. Hyperodds records each forecast next to its own fair line and the market price, keeps it private until the market's cutoff, then publishes it and scores it once Hyperliquid settles the market. A public board ranks forecasters by how much they beat the fair line.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n- Forecast today's BTC and ETH markets and enter them in the record.\n\nNo tool can trade, move funds or access an account, and there is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 market data calls a day per IP address; forecast tools don't count toward it. On the first forecast, the extension makes a forecaster key and keeps it on this computer, in ~/.config/hyperodds/forecaster.key ($XDG_CONFIG_HOME/hyperodds/forecaster.key when that is set, %APPDATA%\\hyperodds\\forecaster.key on Windows). A forecast sends Hyperodds its forecaster address and the signed forecast, never the key. With signing on, approving the odds_forecast call in Claude is the only confirmation before forecasts are entered.",
   "author": {
     "name": "Hyperodds",
     "email": "dev@usehyperodds.com",
@@ -40,7 +40,7 @@
     "forecaster_key": {
       "type": "string",
       "title": "Forecaster key",
-      "description": "Optional. A private key, 64 hex digits, to sign forecasts with, such as the one from another computer to keep the same forecaster. Leave it empty to use the key the extension makes on the first forecast.",
+      "description": "Optional. A private key made for forecasts, 64 hex digits, such as this extension's key from another computer. Never use a key that holds funds: to forecast as a wallet you already have, turn signing off and sign the link in that wallet. Leave it empty to use the key the extension makes on the first forecast.",
       "sensitive": true,
       "required": false,
       "default": ""
@@ -76,7 +76,7 @@
     },
     {
       "name": "odds_forecast_record",
-      "description": "One forecaster's public record: their board row, forecasts past the cutoff with results and scores, and how many are still private. Without an address, this computer's forecaster."
+      "description": "One forecaster's public record: their board row, forecasts past the cutoff with results and scores, and how many are still private. With signing on and no address, this computer's forecaster."
     },
     {
       "name": "odds_leaderboard",

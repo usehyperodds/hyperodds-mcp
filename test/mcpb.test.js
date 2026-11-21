@@ -63,6 +63,12 @@ describe("Claude Desktop extension", () => {
     );
   });
 
+  test("the README pins the package's own version", () => {
+    const pins = [...read("README.md").matchAll(/@hyperodds\/mcp@(\d+\.\d+\.\d+)/g)].map((m) => m[1]);
+    assert.ok(pins.length > 0);
+    for (const pin of pins) assert.equal(pin, pkg.version);
+  });
+
   test("the forecaster key setting is optional and empty unless the person fills it in", async () => {
     const config = (userConfig) =>
       getMcpConfigForManifest({
