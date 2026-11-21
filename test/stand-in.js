@@ -12,7 +12,14 @@ import { DOMAIN, digest, TYPES } from "../dist/forecast.js";
 export const TOOLS = [
   {
     name: "odds_forecast",
-    description: "Records a probability for one or more HIP-4 markets in Hyperodds' public forecast record.",
+    // The hosted server's own description, whose sentences on sign links the bridge replaces.
+    description:
+      "Records a probability for one or more HIP-4 markets in Hyperodds' public forecast record, scored against " +
+      "Hyperliquid's settlement. Give signed (an EIP-712 Forecast or ForecastBatch signed by the forecaster's own key) " +
+      "to record it. Without a key, give forecasts and get a sign link to show the person, whose wallet signs it in the " +
+      "browser; with forecaster as well, the answer also carries typed data a local key can sign. Up to 50 markets whose " +
+      "cutoffs fall on one UTC day; entries close an hour before each market's cutoff. Forecasts stay private until " +
+      "the cutoff. Hyperodds never holds a key.",
     inputSchema: {
       type: "object",
       properties: {
