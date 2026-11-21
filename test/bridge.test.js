@@ -170,6 +170,28 @@ describe("bridge", () => {
     );
   });
 
+  test("the network note goes on errors where nothing answered, and only there", async () => {
+    const note = "Requests go through the proxy http://proxy.corp:8080 from HTTPS_PROXY.";
+    const answers = {
+      down: () => {
+        throw new TypeError("fetch failed", { cause: { code: "ECONNREFUSED" } });
+      },
+      slow: () => new Promise(() => {}),
+      edge: () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "text/html" } }),
+    };
+    const messages = {};
+    for (const [name, answer] of Object.entries(answers)) {
+      const h = harness(answer, 50, "Hyperodds", { networkNote: note });
+      await h.send({ jsonrpc: "2.0", id: name, method: "tools/list" });
+      messages[name] = h.out[0].error.message;
+    }
+    assert.deepEqual(messages, {
+      down: `Could not reach Hyperodds (ECONNREFUSED). ${note}`,
+      slow: `Hyperodds did not answer within 0.05 seconds. ${note}`,
+      edge: "Hyperodds replied HTTP 502 with no JSON-RPC response.",
+    });
+  });
+
   test("closing drops what is still out, without an answer", async () => {
     const h = harness(() => new Promise(() => {}));
     h.bridge.receive(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }));

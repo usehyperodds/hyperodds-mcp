@@ -2,6 +2,7 @@
 import { createRequire } from "node:module";
 import { Bridge } from "./bridge.js";
 import { keyPath } from "./key.js";
+import { proxyNote } from "./proxy.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 const DEFAULT_URL = "https://api.usehyperodds.com/mcp";
@@ -21,6 +22,11 @@ Environment:
   HYPERODDS_FORECAST_KEY      the forecaster's private key, 64 hex digits (default: a key made on
                               the first forecast and kept in ${keyPath()})
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
+  HTTPS_PROXY                 proxy for an https server
+  HTTP_PROXY                  proxy for an http server
+  NO_PROXY                    hosts to reach without the proxy
+  NODE_USE_ENV_PROXY          1 turns on the three above (Node.js 22.21, 24.5 or later)
+  The proxy variables also work in lowercase, which takes precedence.
 
 Docs: https://usehyperodds.com/docs/mcp`;
 
@@ -40,35 +46,39 @@ if (arg === "--version" || arg === "-v") {
 }
 if (arg !== undefined || extra !== undefined) fail(`Unknown argument ${arg ?? extra}.`);
 
+// Errors never repeat the variable's value: it could carry a secret.
 const url = process.env.HYPERODDS_MCP_URL || DEFAULT_URL;
-let protocol = "";
-try {
-  protocol = new URL(url).protocol;
-} catch {
-  fail(`HYPERODDS_MCP_URL is not a URL: "${url}".`);
-}
-if (protocol !== "https:" && protocol !== "http:")
-  fail(`HYPERODDS_MCP_URL must be an http or https URL: "${url}".`);
+if (!URL.canParse(url)) fail("HYPERODDS_MCP_URL is not a URL.");
+const target = new URL(url);
+if (target.username || target.password) fail("HYPERODDS_MCP_URL must not contain a username or password.");
+if (target.protocol !== "https:" && target.protocol !== "http:")
+  fail(`HYPERODDS_MCP_URL must be an http or https URL, not "${target.protocol.slice(0, -1)}".`);
+// Names the server in errors and logs, without a query string, which could also carry a secret.
+const shown = `${target.origin}${target.pathname}`;
 
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))
-  fail(`HYPERODDS_FORECAST_SIGNING must be on or off: "${signing}".`);
+  fail("HYPERODDS_FORECAST_SIGNING must be on or off.");
 const signs = !["off", "false"].includes(signing.trim().toLowerCase());
 
 const log = (line: string) => process.stderr.write(`hyperodds-mcp: ${line}\n`);
+const flags = [...process.execArgv, ...(process.env.NODE_OPTIONS ?? "").split(/\s+/)];
+const proxy = proxyNote(target, process.env, process.versions.node, flags);
+if (proxy?.ignored) log(proxy.text);
 // The client went away: nothing is left to answer.
 process.stdout.on("error", () => process.exit(0));
 const bridge = new Bridge({
-  url,
-  label: url === DEFAULT_URL ? "Hyperodds" : `${url} (set by HYPERODDS_MCP_URL)`,
+  url: target.href,
+  label: target.href === DEFAULT_URL ? "Hyperodds" : `${shown} (set by HYPERODDS_MCP_URL)`,
   write: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
+  networkNote: proxy?.text,
   keys: signs ? { env: process.env.HYPERODDS_FORECAST_KEY, path: keyPath(), log } : undefined,
 });
 
 if (process.stdin.isTTY)
-  log(`Waiting for an MCP client on stdin, forwarding to ${url}. Run with --help for usage.`);
+  log(`Waiting for an MCP client on stdin, forwarding to ${shown}. Run with --help for usage.`);
 
 // Messages end at "\n" only. readline would also split at U+2028 and U+2029, which JSON allows
 // unescaped inside strings; a trailing "\r" is whitespace to JSON.parse.

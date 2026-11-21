@@ -66,6 +66,35 @@ function run(input, env = {}, args = []) {
   });
 }
 
+/** Sends one request and resolves with the first line the CLI answers and its stderr so far. */
+function ask(message, env) {
+  return new Promise((done, fail) => {
+    const proc = spawn(process.execPath, [cli], { env: { ...process.env, ...env } });
+    let stdout = "";
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      stderr += d;
+    });
+    proc.stdout.on("data", (d) => {
+      stdout += d;
+      if (!stdout.includes("\n")) return;
+      proc.stdin.end();
+      done({ answer: JSON.parse(stdout.split("\n")[0]), stderr });
+    });
+    proc.on("close", (code) => fail(new Error(`exited with ${code} before answering: ${stderr}`)));
+    proc.stdin.write(`${JSON.stringify(message)}\n`);
+  });
+}
+
+// Proxy settings from the environment running the tests would change what the CLI does.
+const noProxy = {
+  HTTPS_PROXY: undefined,
+  https_proxy: undefined,
+  HTTP_PROXY: undefined,
+  http_proxy: undefined,
+  NODE_USE_ENV_PROXY: undefined,
+};
+
 describe("hyperodds-mcp", () => {
   let server;
   let url;
@@ -180,7 +209,7 @@ describe("hyperodds-mcp", () => {
     assert.equal(signing.code, 2);
     assert.equal(
       signing.stderr,
-      'hyperodds-mcp: HYPERODDS_FORECAST_SIGNING must be on or off: "maybe". Run with --help for usage.\n',
+      "hyperodds-mcp: HYPERODDS_FORECAST_SIGNING must be on or off. Run with --help for usage.\n",
     );
     for (const value of ["on", "OFF", "true", "false"])
       assert.equal((await run("", { HYPERODDS_FORECAST_SIGNING: value })).code, 0, value);
@@ -237,5 +266,48 @@ describe("hyperodds-mcp", () => {
       assert.equal(server.recorded.length, 0);
       assert.equal(r.stderr, "");
     });
+  });
+
+  test("refuses a server URL with a username or password, and never repeats a secret", async () => {
+    const login = await run("", { HYPERODDS_MCP_URL: "https://user:s3cret@example.com/mcp" });
+    assert.equal(login.code, 2);
+    assert.equal(
+      login.stderr,
+      "hyperodds-mcp: HYPERODDS_MCP_URL must not contain a username or password. Run with --help for usage.\n",
+    );
+    const typo = await run("", { HYPERODDS_MCP_URL: "https//user:s3cret@example.com/mcp" });
+    assert.equal(typo.code, 2);
+    assert.doesNotMatch(typo.stderr, /s3cret/);
+
+    // Nothing listens on port 1. The error names the server without its query string.
+    const keyed = await ask(
+      { jsonrpc: "2.0", id: 1, method: "ping" },
+      { ...noProxy, HYPERODDS_MCP_URL: "http://127.0.0.1:1/mcp?key=s3cret" },
+    );
+    assert.match(keyed.answer.error.message, /^Could not reach http:\/\/127\.0\.0\.1:1\/mcp \(set by/);
+    assert.doesNotMatch(JSON.stringify(keyed), /s3cret/);
+  });
+
+  test("names the proxy when it cannot be reached, and says when a proxy goes unused", async () => {
+    const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+    const server = { ...noProxy, HYPERODDS_MCP_URL: "https://hyperodds.test/mcp" };
+    // Nothing listens on port 1, so the proxy refuses at once.
+    const proxied = await ask(ping, {
+      ...server,
+      NODE_USE_ENV_PROXY: "1",
+      HTTPS_PROXY: "http://user:s3cret@127.0.0.1:1",
+    });
+    assert.match(
+      proxied.answer.error.message,
+      /\(ECONNREFUSED\)\. Requests go through the proxy http:\/\/127\.0\.0\.1:1 from HTTPS_PROXY\.$/,
+    );
+    assert.doesNotMatch(JSON.stringify(proxied), /s3cret/);
+
+    const unused = await run("", { ...server, HTTPS_PROXY: "http://user:s3cret@127.0.0.1:1" });
+    assert.equal(
+      unused.stderr,
+      "hyperodds-mcp: HTTPS_PROXY is set, but Node.js ignores it unless NODE_USE_ENV_PROXY=1 is set as well.\n",
+    );
+    assert.match((await run("", {}, ["--help"])).lines.join("\n"), /HTTPS_PROXY[\s\S]*NODE_USE_ENV_PROXY/);
   });
 });

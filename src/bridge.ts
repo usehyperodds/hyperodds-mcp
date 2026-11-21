@@ -35,6 +35,8 @@ export interface BridgeOptions {
   /** Diagnostics, which the client shows in its server log; never the protocol channel. */
   log: (line: string) => void;
   userAgent: string;
+  /** Added when the server cannot be reached or does not answer: which proxy is in use, or why none is. */
+  networkNote?: string;
   timeoutMs?: number;
   fetch?: typeof fetch;
   /** The forecaster key. Without it, forecasts pass through unsigned, for a sign link. */
@@ -156,9 +158,7 @@ export class Bridge {
       const reason = controller.signal.reason;
       if (reason === "cancelled" || reason === "shutdown") return;
       const why =
-        error instanceof Failure
-          ? error.message
-          : failureText(error, reason, this.opts.label, this.timeoutMs);
+        error instanceof Failure ? error.message : failureText(error, reason, this.opts, this.timeoutMs);
       this.opts.log(why);
       if (replyTo !== null) this.opts.write(rpcError(replyTo, INTERNAL_ERROR, why));
     } finally {
@@ -350,12 +350,14 @@ function recordUrl(draftUrl: unknown, address: string): string {
   return `https://usehyperodds.com/forecasts/${address}`;
 }
 
-function failureText(error: unknown, reason: unknown, label: string, timeoutMs: number): string {
-  if (reason === "timeout") return `${label} did not answer within ${timeoutMs / 1000} seconds.`;
+function failureText(error: unknown, reason: unknown, opts: BridgeOptions, timeoutMs: number): string {
+  const { label, networkNote } = opts;
+  const note = networkNote ? ` ${networkNote}` : "";
+  if (reason === "timeout") return `${label} did not answer within ${timeoutMs / 1000} seconds.${note}`;
   if (error instanceof SyntaxError) return `${label} sent an answer that is not valid JSON.`;
   const code = (error as { cause?: { code?: unknown } })?.cause?.code;
   const detail = typeof code === "string" ? code : error instanceof Error ? error.message : String(error);
-  return `Could not reach ${label} (${detail}).`;
+  return `Could not reach ${label} (${detail}).${note}`;
 }
 
 async function* eventData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {

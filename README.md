@@ -32,6 +32,17 @@ Claude Desktop installs Hyperodds as an extension: download
 from the latest release and open it. Claude Desktop lists the tools and adds them when you select
 Install. The extension is this bridge, and it runs on the Node.js that comes with Claude Desktop.
 
+To check the file before you open it, compare its SHA-256 with the one in the release notes
+(`shasum -a 256 hyperodds.mcpb` on macOS, `certutil -hashfile hyperodds.mcpb SHA256` on Windows),
+or confirm with the GitHub CLI that this repository's release workflow built it:
+
+```sh
+gh attestation verify hyperodds.mcpb --repo usehyperodds/hyperodds-mcp
+```
+
+The file is not signed with an MCPB certificate, so these checks are how to confirm where it came
+from.
+
 To add the bridge by hand, Claude Desktop (Settings > Developer > Edit Config), Cursor
 (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) and Windsurf take this entry:
 
@@ -68,7 +79,7 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 ## What to ask
 
 - "Which HIP-4 markets show the biggest edge after fees right now?"
-- "Is the next Fed decision priced the same on every deployer, and do their rules match?"
+- "How is the next Fed decision priced?"
 - "Where does the fair line for the BTC markets settling today come from, and how confident is it?"
 - "What was listed in the last hour?"
 - "Forecast today's BTC and ETH markets and enter your forecasts in the record."
@@ -78,7 +89,7 @@ use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
 | Tool                   | Input                                                                                                    | Output                                                                                                                                                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `odds_markets`         | `category`, `deployer`, `sort` (`volume`, `edge`, `new`, `settling`), `q`, `limit` (up to 100), `offset` | Markets with bid, ask, fair line, best buy edge after fees, 24h volume, event time and status, plus how many match in total                                                   |
-| `odds_cluster`         | `id`, or the `outcome` of any member                                                                     | One question listed by several deployers: each member's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                                |
+| `odds_cluster`         | `id`, or the `outcome` of any member                                                                     | For a question more than one deployer lists: each listing's rule grade (`SAME`, `CLOSE` or `DIFFERENT`), the differences found and the merged book                            |
 | `odds_fair`            | `outcome`                                                                                                | One market's fair line: probability and band, method, confidence and flags, each source with its weight and age, plus the book and the edge for buying or selling either side |
 | `odds_new`             | `category`, `limit` (up to 100), `offset`                                                                | Markets in listing order, newest first, with the same fields as `odds_markets`                                                                                                |
 | `odds_forecast`        | `forecasts`: up to 50 of an `outcome` and a `probabilityBps` from 1 to 9999                              | The forecasts as recorded, signed on your machine, with the UTC day whose record they join                                                                                    |
@@ -170,18 +181,33 @@ second, with bursts of up to 30. Forecasts have limits of their own: 1,000 a day
 forecaster, and 30 forecast calls an hour from one IP address, since each call asks for a draft.
 Past any limit, the server answers with an error that names it.
 
+## Privacy
+
+The bridge forwards each message from your client to `api.usehyperodds.com`. That includes the
+arguments of every tool call, such as the text of a search, and the name and version your client
+reports when it connects. Each request also carries a user agent with the bridge and Node.js
+versions, such as `hyperodds-mcp/0.2.0 node/24.22.0`. Requests pass through Cloudflare on their way
+to our hosting provider.
+
+Messages go through unchanged, with one exception: on the forecast tools, the bridge adds your
+forecaster address and sends your forecasts with their signature. The forecaster key never leaves
+your machine. Each forecast is private until its market's cutoff, then public with the address that
+signed it.
+
+The server counts tool calls per IP address for the daily allowance. It never stores the address
+itself, only a hash made with a key that changes every day, and it deletes each day's key the next
+day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
+
 ## Configuration
 
-These settings apply to the entry you add by hand. The Claude Desktop extension always uses the
-hosted server, and its settings cover the forecaster key and signing.
+The bridge reads its settings from the environment. In an entry you add by hand, set them in
+`env`:
 
 | Variable                     | Default                            | Purpose                                                     |
 | ---------------------------- | ---------------------------------- | ----------------------------------------------------------- |
 | `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp` | The server to forward to                                    |
 | `HYPERODDS_FORECAST_KEY`     | The key file                       | A private key to sign forecasts with, 64 hex digits         |
 | `HYPERODDS_FORECAST_SIGNING` | `on`                               | `off` sends forecasts unsigned, for a sign link to a wallet |
-
-Set them in the client entry's `env`:
 
 ```json
 {
@@ -191,8 +217,21 @@ Set them in the client entry's `env`:
 }
 ```
 
-Behind a proxy, add `HTTPS_PROXY` and `NODE_USE_ENV_PROXY=1` to the same `env`. Node.js reads the
-proxy only when the second is set, which needs Node.js 22.21 or later.
+The extension uses the hosted server unless `HYPERODDS_MCP_URL` is set in the environment its host
+starts it with. Claude Desktop does not pass your own environment variables to extensions, so there
+it always uses the hosted server, and the extension's own settings hold the forecaster key and turn
+signing on or off.
+
+Behind a proxy, add `HTTPS_PROXY` and `NODE_USE_ENV_PROXY=1` to the same `env`. Node.js uses the
+proxy only when the second is set, which needs Node.js 22.21, 24.5 or later; `--help` lists the
+other proxy variables. When the server cannot be reached, the error names the proxy, or says why
+a proxy that is set goes unused.
+
+npx downloads the package through the same proxy. Any npm registry token travels encrypted, but a
+proxy that decrypts TLS can read it, so use a proxy you trust.
+
+The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
+`HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
 
 `npx -y @hyperodds/mcp --help` and `--version` print the usage and the version.
 

@@ -73,10 +73,12 @@ describe("Claude Desktop extension", () => {
         pathSeparator: sep,
       });
     assert.deepEqual((await config({})).env, {
+      NODE_USE_ENV_PROXY: "1",
       HYPERODDS_FORECAST_KEY: "",
       HYPERODDS_FORECAST_SIGNING: "true",
     });
     assert.deepEqual((await config({ forecaster_key: "0xabc", forecast_signing: false })).env, {
+      NODE_USE_ENV_PROXY: "1",
       HYPERODDS_FORECAST_KEY: "0xabc",
       HYPERODDS_FORECAST_SIGNING: "false",
     });
@@ -107,7 +109,9 @@ describe("Claude Desktop extension", () => {
         "dist/cli.js",
         "dist/forecast.js",
         "dist/key.js",
+        "dist/proxy.js",
         "icon-dark.png",
+        "icon-light.png",
         "icon.png",
         "manifest.json",
         "package.json",
@@ -137,12 +141,14 @@ describe("Claude Desktop extension", () => {
     });
     assert.equal(config.command, "node");
     assert.deepEqual(config.args, [join(dir, "dist", "cli.js")]);
+    // Hosts pass their proxy settings as HTTPS_PROXY and friends; Node.js uses them only with this.
+    assert.equal(config.env.NODE_USE_ENV_PROXY, "1");
 
     // Claude Desktop runs "node" with the Node.js it ships; this test's Node stands in for it.
     const home = join(work, "config");
-    const proc = spawn(process.execPath, config.args, {
-      env: { ...process.env, ...config.env, HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: home },
-    });
+    const env = { ...process.env, ...config.env, HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: home };
+    for (const name of ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"]) delete env[name];
+    const proc = spawn(process.execPath, config.args, { env });
     t.after(() => proc.kill());
     const exited = new Promise((r) => proc.on("close", r));
     let stdout = "";
