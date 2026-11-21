@@ -41,13 +41,14 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test": "npm run build && node --test test/forecast.test.js test/key.test.js test/bridge.test.js test/cli.test.js test/proxy.test.js test/mcpb.test.js",
+    "test": "npm run build && node --test test/forecast.test.js test/key.test.js test/bridge.test.js test/cli.test.js test/proxy.test.js test/sdk.test.js test/mcpb.test.js",
     "mcpb": "npm run build && node scripts/mcpb.mjs",
     "prepack": "npm run build"
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "2.1.2",
     "@biomejs/biome": "2.6.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "22.20.5",
     "typescript": "7.0.2"
   },

@@ -8,6 +8,37 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { DOMAIN, digest, TYPES } from "../dist/forecast.js";
 
+// The spec's refusal codes, whole-request and per entry, which the server's output schema lists.
+const REFUSAL_CODES = [
+  "invalid_request",
+  "batch_size",
+  "duplicate_outcome",
+  "stale_time",
+  "bad_signature",
+  "not_found",
+  "replayed",
+  "draft_mismatch",
+  "draft_expired",
+  "too_large",
+  "entries_refused",
+  "mixed_days",
+  "rate_limited",
+  "daily_cap",
+  "ip_daily_cap",
+  "day_full",
+  "internal",
+  "loading",
+];
+const ENTRY_CODES = [
+  "not_listed",
+  "fallback",
+  "no_event_time",
+  "touch_market",
+  "past_close",
+  "past_cutoff",
+  "out_of_order",
+];
+
 export const TOOLS = [
   {
     name: "odds_forecast",
@@ -27,6 +58,37 @@ export const TOOLS = [
         forecaster: { type: "string" },
       },
     },
+    // Strict, like the server's, so an MCP client refuses an answer of any other shape.
+    outputSchema: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["recorded", "draft", "refused"] },
+        code: { type: "string", enum: REFUSAL_CODES },
+        entries: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              index: { type: "integer" },
+              outcome: { type: "integer" },
+              code: { type: "string", enum: ENTRY_CODES },
+              error: { type: "string" },
+            },
+            required: ["index", "outcome", "code", "error"],
+          },
+        },
+        day: { type: "string" },
+        forecaster: { type: ["string", "null"] },
+        forecasts: { type: "array" },
+        batch: { type: "integer" },
+        draft: { type: "string" },
+        url: { type: "string" },
+        expiresAt: { type: "string" },
+        typedData: { type: ["object", "null"] },
+      },
+      required: ["status"],
+      additionalProperties: false,
+    },
   },
   {
     name: "odds_forecast_record",
@@ -36,16 +98,23 @@ export const TOOLS = [
       properties: { address: { type: "string" }, limit: { type: "integer" } },
       required: ["address"],
     },
+    outputSchema: {
+      type: "object",
+      properties: {
+        forecaster: { type: "string" },
+        summary: { type: ["object", "null"] },
+        pending: { type: "integer" },
+        total: { type: "integer" },
+        forecasts: { type: "array" },
+      },
+      required: ["forecaster", "summary", "pending", "total", "forecasts"],
+      additionalProperties: false,
+    },
   },
   { name: "odds_leaderboard", description: "Ranks forecasters.", inputSchema: { type: "object" } },
 ];
 
 const ok = (data) => ({ content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data });
-const refusal = (code, error) => ({
-  content: [{ type: "text", text: error }],
-  structuredContent: { code, entries: [] },
-  isError: true,
-});
 
 const HALF_N = 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0n;
 
@@ -61,8 +130,16 @@ export function recover(type, message, signature) {
   return `0x${bytesToHex(keccak_256(publicKey.subarray(1)).subarray(12))}`;
 }
 
-/** `now` is the stand-in's clock in milliseconds. */
-export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {}) {
+/**
+ * `now` is the stand-in's clock in milliseconds. `bareRefusals` answers refusals without their
+ * status, as the server did before refusals had a shape its output schema accepts.
+ */
+export function standIn({ web = "https://usehyperodds.com", now = Date.now, bareRefusals = false } = {}) {
+  const refusal = (code, error, entries = []) => ({
+    content: [{ type: "text", text: error }],
+    structuredContent: bareRefusals ? { code, entries } : { status: "refused", code, entries },
+    isError: true,
+  });
   const used = new Set();
   const latest = new Map();
   const pending = new Map();
@@ -116,14 +193,11 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {
       .map(({ outcome }, index) => ({ index, outcome }))
       .filter(({ outcome }) => message.time <= (latest.get(`${forecaster}:${outcome}`) ?? -1));
     if (late.length > 0)
-      return {
-        content: [{ type: "text", text: "One or more forecasts were refused." }],
-        structuredContent: {
-          code: "entries_refused",
-          entries: late.map((e) => ({ ...e, code: "out_of_order", error: "A later forecast is recorded." })),
-        },
-        isError: true,
-      };
+      return refusal(
+        "entries_refused",
+        "One or more forecasts were refused.",
+        late.map((e) => ({ ...e, code: "out_of_order", error: "A later forecast is recorded." })),
+      );
     used.add(`${forecaster}:${message.nonce}`);
     for (const { outcome } of entries) latest.set(`${forecaster}:${outcome}`, message.time);
     batch++;
@@ -155,7 +229,11 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {
     if (body.id === undefined) return null;
     const reply = (result) => ({ jsonrpc: "2.0", id: body.id, result });
     if (body.method === "initialize")
-      return reply({ protocolVersion: "2025-06-18", capabilities: { tools: {} } });
+      return reply({
+        protocolVersion: "2025-06-18",
+        capabilities: { tools: {} },
+        serverInfo: { name: "hyperodds-stand-in", version: "1.0.0" },
+      });
     if (body.method === "tools/list") return reply({ tools: structuredClone(TOOLS) });
     const { name, arguments: args = {} } = body.params ?? {};
     if (name === "odds_forecast_record" && typeof args.address !== "string")
@@ -163,7 +241,7 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now } = {
     return reply(call(name, args));
   }
 
-  return { recorded, drafts, answer };
+  return { recorded, drafts, answer, now };
 }
 
 /** Serves a stand-in at /mcp over HTTP; resolves to its URL and a way to stop it. */
@@ -176,7 +254,9 @@ export async function serve(server) {
     req.on("end", () => {
       const answer = server.answer(JSON.parse(raw));
       if (!answer) return res.writeHead(202).end();
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(answer));
+      // The Date header shows the stand-in's own clock, as a real server's shows its own.
+      const date = new Date(server.now()).toUTCString();
+      res.writeHead(200, { "content-type": "application/json", date }).end(JSON.stringify(answer));
     });
   });
   await new Promise((r) => http.listen(0, "127.0.0.1", r));

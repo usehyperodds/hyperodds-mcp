@@ -386,11 +386,19 @@ describe("forecasts signed on this computer", () => {
       [
         [
           true,
-          { code: "invalid_request", entries: [] },
+          { status: "refused", code: "invalid_request", entries: [] },
           "Each forecast takes an outcome id and a probabilityBps, a whole number from 1 to 9999.",
         ],
-        [true, { code: "batch_size", entries: [] }, "One call takes 1 to 50 forecasts, not 51."],
-        [true, { code: "batch_size", entries: [] }, "One call takes 1 to 50 forecasts, not 0."],
+        [
+          true,
+          { status: "refused", code: "batch_size", entries: [] },
+          "One call takes 1 to 50 forecasts, not 51.",
+        ],
+        [
+          true,
+          { status: "refused", code: "batch_size", entries: [] },
+          "One call takes 1 to 50 forecasts, not 0.",
+        ],
       ],
     );
   });

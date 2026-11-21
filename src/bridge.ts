@@ -77,9 +77,14 @@ function rpcError(id: Id | null, code: number, message: string) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 
-function toolError(id: Id, text: string, structuredContent?: Json): Message {
+/**
+ * A tool error. With a spec code it is a refusal in the shape the tool's output schema accepts: MCP
+ * clients check structuredContent against that schema even on errors, and throw when it fails.
+ */
+function toolError(id: Id, text: string, code?: string): Message {
   const result = { content: [{ type: "text", text }], isError: true };
-  return { jsonrpc: "2.0", id, result: structuredContent ? { ...result, structuredContent } : result };
+  const refusal = code ? { structuredContent: { status: "refused", code, entries: [] } } : {};
+  return { jsonrpc: "2.0", id, result: { ...result, ...refusal } };
 }
 
 const withArguments = (msg: Message, args: Json): Message => ({
@@ -222,7 +227,7 @@ export class Bridge {
       entries = checkEntries(args.forecasts);
     } catch (error) {
       if (!(error instanceof EntryError)) throw error;
-      return toolError(id, error.message, { code: error.code, entries: [] });
+      return toolError(id, error.message, error.code);
     }
     const nowMs = (this.opts.now ?? Date.now)();
     const outcomes = entries.map((e) => e.outcome);
