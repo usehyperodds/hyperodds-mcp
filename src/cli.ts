@@ -22,6 +22,8 @@ Environment:
   HYPERODDS_FORECAST_KEY      the forecaster's private key, 64 hex digits (default: a key made on
                               the first forecast and kept in ${keyPath()})
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
+  HYPERODDS_SITE_URL          the site with a hand-set server's forecast records, for links to
+                              them (the hosted server's is https://usehyperodds.com)
   HTTPS_PROXY                 proxy for an https server
   HTTP_PROXY                  proxy for an http server
   NO_PROXY                    hosts to reach without the proxy
@@ -56,6 +58,16 @@ if (target.protocol !== "https:" && target.protocol !== "http:")
 // The query string could carry a secret too, so errors and logs leave it out.
 const shown = `${target.origin}${target.pathname}`;
 
+// Answers link a forecaster's public record only on a site known to publish it.
+const siteSetting = process.env.HYPERODDS_SITE_URL;
+let site: string | undefined;
+if (siteSetting) {
+  if (!URL.canParse(siteSetting)) fail("HYPERODDS_SITE_URL is not a URL.");
+  const { protocol, origin } = new URL(siteSetting);
+  if (protocol !== "https:" && protocol !== "http:") fail("HYPERODDS_SITE_URL must be an http or https URL.");
+  site = origin;
+} else if (target.hostname === "api.usehyperodds.com") site = "https://usehyperodds.com";
+
 // Taken out of the environment at once, so nothing else in the process finds the key there.
 const envKey = takeKey();
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
@@ -77,8 +89,7 @@ const bridge = new Bridge({
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
   keys: signs ? { env: envKey, path: keyPath(), log } : undefined,
-  // A hand-set api.example.com publishes records on example.com; any other server on its own origin.
-  webOrigin: target.href === DEFAULT_URL ? "https://usehyperodds.com" : target.origin.replace("//api.", "//"),
+  siteUrl: site,
 });
 
 if (process.stdin.isTTY)

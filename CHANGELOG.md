@@ -22,6 +22,9 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   removed from the environment. `HYPERODDS_FORECAST_SIGNING=off` leaves forecasts unsigned, for a
   sign link to a wallet of your own.
 - `odds_forecast_record` without an address reads this machine's forecaster.
+- `HYPERODDS_SITE_URL` names the site that publishes a hand-set server's forecast records. The
+  answer after a forecast links the record only there, or on usehyperodds.com for the hosted
+  server.
 - The Claude Desktop extension lists the forecast tools and has two settings: a forecaster key,
   kept as a secret, and whether to sign forecasts on this computer.
 

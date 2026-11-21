@@ -311,7 +311,7 @@ describe("forecasts signed on this computer", () => {
     assert.equal(result.content.length, 2);
     assert.equal(
       result.content[1].text,
-      `Signed on this computer by forecaster ${forecaster}. Its public record is https://usehyperodds.com/forecasts/${forecaster}, where each forecast appears after its market's cutoff.`,
+      `Signed on this computer by forecaster ${forecaster}. Each forecast appears in its public record after its market's cutoff.`,
     );
 
     assert.equal(h.sent.length, 1);
@@ -356,19 +356,20 @@ describe("forecasts signed on this computer", () => {
     assert.deepEqual(h.logs, []);
   });
 
-  test("names the record on the configured site, never on one the server names", async () => {
-    const hosted = signing({ web: "https://phish.example" });
-    await hosted.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+  test("links the record only on the configured site, never on one the server names", async () => {
+    const unknown = signing({ web: "https://phish.example" });
+    await unknown.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+    const line = unknown.out[0].result.content[1].text;
     assert.match(
-      hosted.out[0].result.content[1].text,
-      /record is https:\/\/usehyperodds\.com\/forecasts\/0x[0-9a-f]{40},/,
+      line,
+      /^Signed on this computer by forecaster 0x[0-9a-f]{40}\. Each forecast appears in its public record after its market's cutoff\.$/,
     );
 
-    const local = signing({ web: "https://phish.example" }, {}, { webOrigin: "http://localhost:3291" });
-    await local.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+    const site = signing({ web: "https://phish.example" }, {}, { siteUrl: "https://usehyperodds.com" });
+    await site.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
     assert.match(
-      local.out[0].result.content[1].text,
-      /record is http:\/\/localhost:3291\/forecasts\/0x[0-9a-f]{40},/,
+      site.out[0].result.content[1].text,
+      /Its public record is https:\/\/usehyperodds\.com\/forecasts\/0x[0-9a-f]{40}, where each forecast appears after its market's cutoff\.$/,
     );
   });
 

@@ -156,7 +156,8 @@ you can read:
 | Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
 
 The key's address is your forecaster. After each forecast, the bridge names it and its public
-record, `https://usehyperodds.com/forecasts/<address>`. Hyperodds receives the address and the
+record, `https://usehyperodds.com/forecasts/<address>`. With a server you set by hand, it links the
+record only when `HYPERODDS_SITE_URL` names the site that publishes it. Hyperodds receives the address and the
 signed forecasts, never the key.
 
 On macOS and Linux, the bridge refuses a key file that another user owns, or one in a folder other
@@ -224,11 +225,12 @@ day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
 The bridge reads its settings from the environment. In an entry you add by hand, set them in
 `env`:
 
-| Variable                     | Default                            | Purpose                                                     |
-| ---------------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp` | The server to forward to                                    |
-| `HYPERODDS_FORECAST_KEY`     | The key file                       | A private key to sign forecasts with, 64 hex digits         |
-| `HYPERODDS_FORECAST_SIGNING` | `on`                               | `off` sends forecasts unsigned, for a sign link to a wallet |
+| Variable                     | Default                            | Purpose                                                                                                       |
+| ---------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp` | The server to forward to                                                                                      |
+| `HYPERODDS_FORECAST_KEY`     | The key file                       | A private key to sign forecasts with, 64 hex digits                                                           |
+| `HYPERODDS_FORECAST_SIGNING` | `on`                               | `off` sends forecasts unsigned, for a sign link to a wallet                                                   |
+| `HYPERODDS_SITE_URL`         | None                               | With a server you set by hand, the site that publishes its forecast records, for the link after each forecast |
 
 ```json
 {

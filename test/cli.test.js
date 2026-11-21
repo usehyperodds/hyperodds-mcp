@@ -250,6 +250,29 @@ describe("hyperodds-mcp", () => {
       assert.equal(server.recorded.length, 2);
     });
 
+    test("link the record only on HYPERODDS_SITE_URL when the server was set by hand", async (t) => {
+      const { url, close } = await serve(standIn({ web: "https://phish.example" }));
+      t.after(close);
+      const env = { HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: mkdtempSync(join(config, "site-")) };
+      const line = async (more) =>
+        (await session({ ...env, ...more }, [forecast(1, { forecasts })], 1)).answers[1].result.content[1]
+          .text;
+      assert.match(
+        await line({}),
+        /^Signed on this computer by forecaster 0x[0-9a-f]{40}\. Each forecast appears in its public record after its market's cutoff\.$/,
+      );
+      assert.match(
+        await line({ HYPERODDS_SITE_URL: "http://localhost:3291/ignored/path" }),
+        /Its public record is http:\/\/localhost:3291\/forecasts\/0x[0-9a-f]{40}, where/,
+      );
+      for (const bad of ["not a url", "ftp://example.com"]) {
+        const r = await run("", { HYPERODDS_SITE_URL: bad });
+        assert.equal(r.code, 2, bad);
+        assert.match(r.stderr, /^hyperodds-mcp: HYPERODDS_SITE_URL /, bad);
+        assert.ok(!r.stderr.includes(bad), bad);
+      }
+    });
+
     test("pass through unsigned when HYPERODDS_FORECAST_SIGNING is off", async (t) => {
       const server = standIn();
       const { url, close } = await serve(server);

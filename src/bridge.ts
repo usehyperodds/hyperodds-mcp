@@ -43,8 +43,8 @@ export interface BridgeOptions {
   fetch?: typeof fetch;
   /** The forecaster key. Without it, forecasts pass through unsigned, for a sign link. */
   keys?: KeySource;
-  /** The site with the server's public forecast records: https://usehyperodds.com unless set. */
-  webOrigin?: string;
+  /** The site with the server's public forecast records. Without it, answers name no record link. */
+  siteUrl?: string;
   now?: () => number;
 }
 
@@ -245,11 +245,14 @@ export class Bridge {
     const result = recorded?.result;
     if (!result) return recorded;
     if (result.isError) return { ...recorded, result: explained(result, signable.message.time, serverMs) };
-    const record = new URL(`/forecasts/${signer.address}`, this.opts.webOrigin ?? "https://usehyperodds.com");
+    const { siteUrl } = this.opts;
+    const record = siteUrl
+      ? `Its public record is ${new URL(`/forecasts/${signer.address}`, siteUrl).href}, where each forecast appears after its market's cutoff.`
+      : "Each forecast appears in its public record after its market's cutoff.";
     if (Array.isArray(result.content))
       result.content.push({
         type: "text",
-        text: `Signed on this computer by forecaster ${signer.address}. Its public record is ${record.href}, where each forecast appears after its market's cutoff.`,
+        text: `Signed on this computer by forecaster ${signer.address}. ${record}`,
       });
     return recorded;
   }
