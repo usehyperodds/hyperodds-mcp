@@ -16,6 +16,7 @@ const manifest = JSON.parse(readFileSync(join(root, "mcpb", "manifest.json"), "u
 const files = {
   "manifest.json": "mcpb/manifest.json",
   "icon.png": "mcpb/icon.png",
+  "icon-dark.png": "mcpb/icon-dark.png",
   LICENSE: "LICENSE",
   "dist/cli.js": "dist/cli.js",
   "dist/bridge.js": "dist/bridge.js",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
@@ -71,11 +71,14 @@ describe("Claude Desktop extension", () => {
       "dist",
       join("dist", "bridge.js"),
       join("dist", "cli.js"),
+      "icon-dark.png",
       "icon.png",
       "manifest.json",
       "package.json",
     ]);
     const installed = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8"));
+    // mcpb validate checks "icon" only.
+    for (const { src } of installed.icons) assert.ok(existsSync(join(dir, src)), src);
     const config = await getMcpConfigForManifest({
       manifest: installed,
       extensionPath: dir,
