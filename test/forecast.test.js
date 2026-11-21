@@ -5,7 +5,7 @@ import { checkEntries, DOMAIN_SEPARATOR, digest, forecastMessage, TYPE_HASHES } 
 import { TEST_ADDRESS, vectors } from "./vectors.js";
 
 describe("forecast messages", () => {
-  test("hash the contract's test vectors exactly", () => {
+  test("hash the spec's test vectors exactly", () => {
     assert.equal(
       bytesToHex(DOMAIN_SEPARATOR),
       "8c35fadb67824908e8f620e61384ee244830a28d798764768569090f3d929e37",
@@ -29,7 +29,7 @@ describe("forecast messages", () => {
 describe("the message built for this computer's key", () => {
   const forecaster = TEST_ADDRESS.toLowerCase();
 
-  test("is the contract's message for the forecasts asked for, at the time given, with a fresh nonce", () => {
+  test("is the spec's message for the forecasts asked for, at the time given, with a fresh nonce", () => {
     const batch = forecastMessage(forecaster, checkEntries(vectors[1].message.forecasts), 1763719200);
     const { nonce, ...rest } = batch.message;
     assert.equal(batch.type, "ForecastBatch");

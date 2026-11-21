@@ -18,7 +18,7 @@ const freshPath = () => join(work, String(++dirs), "hyperodds", "forecaster.key"
 describe("forecaster key", () => {
   const quiet = { log: () => {} };
 
-  test("signs the contract's test vectors exactly", () => {
+  test("signs the spec's test vectors exactly", () => {
     const signer = openKey({ env: TEST_KEY, path: freshPath(), log: assert.fail }, true);
     assert.equal(signer.address, TEST_ADDRESS);
     for (const v of vectors) assert.equal(signer.sign(digest(v)), v.signature, v.type);

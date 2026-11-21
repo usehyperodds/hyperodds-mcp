@@ -1,4 +1,4 @@
-// The contract's test vectors: docs/feature/forecasts.md, "EIP-712".
+// The test vectors in the forecast record's spec, under "EIP-712".
 export const TEST_KEY = `0x${"0".repeat(63)}1`;
 export const TEST_ADDRESS = "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
 export const vectors = [

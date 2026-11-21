@@ -1,7 +1,6 @@
-// A stand-in for the hosted server's forecast tools, as docs/feature/forecasts.md in the Hyperodds
-// repository fixes them: drafts with typed data when a forecaster is named, signed submissions
-// checked by signature (low s only), time window, nonce and signed-time order, and each
-// forecaster's pending count.
+// The hosted server's forecast tools as the forecast record's spec fixes them: drafts, with typed
+// data when a forecaster is named; signed submissions, checked for a valid low-s signature, the
+// time window, nonce reuse and signed-time order; and each forecaster's pending count.
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { secp256k1 } from "@noble/curves/secp256k1.js";

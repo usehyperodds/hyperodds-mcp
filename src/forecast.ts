@@ -1,7 +1,6 @@
 /**
- * The forecast record's EIP-712 messages, as the contract fixes them: one domain, a Forecast and a
- * ForecastBatch. The bridge builds them itself from the forecasts asked for, so it never signs typed
- * data that came from a server.
+ * The forecast record's EIP-712 messages, exactly as its spec fixes them. The bridge builds them
+ * itself from the forecasts asked for, so it never signs typed data that came from a server.
  */
 import { randomBytes } from "node:crypto";
 import { numberToBytesBE } from "@noble/curves/utils.js";
@@ -139,8 +138,9 @@ export function checkEntries(entries: unknown): Entry[] {
 }
 
 /**
- * The message for these forecasts, one as a Forecast and more as a ForecastBatch, signed at `time`
- * (Unix seconds) with a random 63-bit nonce, JSON-safe as a string and never reused in practice.
+ * The message for these forecasts: one as a Forecast, more as a ForecastBatch, signed at `time`
+ * (Unix seconds). The nonce is 63 random bits, too many to repeat in practice, and goes as a string
+ * because a JSON number can't hold it exactly.
  */
 export function forecastMessage(forecaster: string, forecasts: Entry[], time: number): Signable {
   const nonce = (randomBytes(8).readBigUInt64BE() >> 1n).toString();

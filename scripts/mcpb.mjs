@@ -30,9 +30,9 @@ const files = {
   LICENSE: "LICENSE",
 };
 
-// The bridge's code and its dependencies' files are the ones it loads, found by following static
-// imports from dist/cli.js. tsc never empties dist, so a file left there by a deleted source stays
-// out, and so does whatever a dependency ships that the bridge never loads.
+// Ship only the files the bridge loads, found by following static imports from dist/cli.js. tsc
+// never empties dist, so this keeps out files left by deleted sources, along with whatever a
+// dependency ships that the bridge never loads.
 const seen = new Set();
 const visit = (file) => {
   if (seen.has(file)) return;
