@@ -113,6 +113,9 @@ server answers with an error that names it.
 
 ## Configuration
 
+These settings apply to the entry you add by hand. The Claude Desktop extension always uses the
+hosted server.
+
 | Variable            | Default                            | Purpose                  |
 | ------------------- | ---------------------------------- | ------------------------ |
 | `HYPERODDS_MCP_URL` | `https://api.usehyperodds.com/mcp` | The server to forward to |
