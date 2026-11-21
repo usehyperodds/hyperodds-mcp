@@ -122,6 +122,18 @@ Each IP address gets 1,000 tool calls a day, reset at 00:00 UTC. Every request, 
 also counts toward a rate limit of 5 a second, with bursts of up to 30. Past either limit, the
 server answers with an error that names it.
 
+## Privacy
+
+The bridge forwards each message from your client to `api.usehyperodds.com` unchanged. That
+includes the arguments of every tool call, such as the text of a search, and the name and version
+your client reports when it connects. Each request also carries a user agent with the bridge and
+Node.js versions, such as `hyperodds-mcp/0.2.0 node/24.22.0`. Requests pass through Cloudflare on
+their way to our hosting provider.
+
+The server counts tool calls per IP address for the daily allowance. It never stores the address
+itself, only a hash made with a key that changes every day, and it deletes each day's key the next
+day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
+
 ## Configuration
 
 These settings apply to the entry you add by hand. The Claude Desktop extension always uses the
