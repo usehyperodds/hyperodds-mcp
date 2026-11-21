@@ -5,7 +5,7 @@
   "display_name": "Hyperodds",
   "version": "0.2.0",
   "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer: books, fair lines with their sources, rule comparisons and the newest listings.",
-  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book, a fair line and where it comes from, the edge after every fee, and whether other deployers listing the same question settle it by the same rules.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Is the next Fed decision priced the same on every deployer, and do their rules match?\n- What was listed in the last hour?\n\nEvery tool is read-only: none can trade or access an account. There is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 tool calls a day per IP address.",
+  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book, a fair line and where it comes from, the edge after every fee, and whether other deployers listing the same question settle it by the same rules.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n\nEvery tool is read-only: none can trade or access an account. There is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 tool calls a day per IP address.",
   "author": {
     "name": "Hyperodds",
     "email": "dev@usehyperodds.com",
