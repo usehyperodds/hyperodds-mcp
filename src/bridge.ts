@@ -23,7 +23,7 @@ export interface BridgeOptions {
   /** Diagnostics, which the client shows in its server log; never the protocol channel. */
   log: (line: string) => void;
   userAgent: string;
-  /** Added when the server cannot be reached or does not answer: which proxy is in use, or why none is. */
+  /** Appended to errors where nothing answered, such as which proxy is in use. */
   networkNote?: string;
   timeoutMs?: number;
   fetch?: typeof fetch;
@@ -156,8 +156,8 @@ export class Bridge {
   }
 
   /**
-   * Passes a server message to the client; true when it settles the message sent: the response to
-   * `replyTo`, or the refusal of a message that expects no response.
+   * Passes a server message to the client. True when it settles the message sent, as the response
+   * to `replyTo` or as the refusal of a message that expects no response.
    */
   private deliver(body: Message, replyTo: Id | null): boolean {
     if (!isObject(body) || body.jsonrpc !== "2.0") return false;

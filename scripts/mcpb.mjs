@@ -1,4 +1,4 @@
-// Packs the Claude Desktop extension: the built bridge with its manifest and icon, as one .mcpb file.
+// Packs the built bridge into the Claude Desktop extension, a single .mcpb file.
 // Usage: node scripts/mcpb.mjs [output], after npm run build. Default output: build/hyperodds.mcpb.
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

@@ -48,7 +48,7 @@ const target = new URL(url);
 if (target.username || target.password) fail("HYPERODDS_MCP_URL must not contain a username or password.");
 if (target.protocol !== "https:" && target.protocol !== "http:")
   fail(`HYPERODDS_MCP_URL must be an http or https URL, not "${target.protocol.slice(0, -1)}".`);
-// Names the server in errors and logs, without a query string, which could also carry a secret.
+// The query string could carry a secret too, so errors and logs leave it out.
 const shown = `${target.origin}${target.pathname}`;
 
 const log = (line: string) => process.stderr.write(`hyperodds-mcp: ${line}\n`);
