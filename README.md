@@ -160,8 +160,9 @@ proxy only when the second is set, which needs Node.js 22.21, 24.5 or later; `--
 other proxy variables. When the server cannot be reached, the error names the proxy, or says why
 a proxy that is set goes unused.
 
-npx downloads the package through the same proxy. Any npm registry token travels encrypted, but a
-proxy that decrypts TLS can read it, so use a proxy you trust.
+npx downloads the package through the same proxy. If your npm config holds a registry token, npm
+(checked with 11.9) puts it in the proxy's CONNECT request in plain text, so only use a proxy you
+trust, or run npx without the token.
 
 The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
 `HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
