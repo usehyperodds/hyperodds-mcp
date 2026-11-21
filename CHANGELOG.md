@@ -3,6 +3,28 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Forecasts signed on your machine. One `odds_forecast` call enters an agent's forecasts in
+  Hyperodds' public record: the bridge asks for a draft, checks that it holds exactly the
+  forecasts asked for, signs it and records it. The answer names the forecaster and its public
+  record.
+- A forecaster key, made on the first forecast and kept in a file only you can read:
+  `~/.config/hyperodds/forecaster.key`, or `%APPDATA%\hyperodds\forecaster.key` on Windows.
+  `HYPERODDS_FORECAST_KEY` sets a key of your own, and `HYPERODDS_FORECAST_SIGNING=off` leaves
+  forecasts unsigned, for a sign link to your own wallet.
+- `odds_forecast_record` without an address reads this machine's forecaster.
+- The Claude Desktop extension lists the forecast tools and has two settings: a forecaster key,
+  kept as a secret, and whether to sign forecasts on this computer.
+
+### Changed
+
+- The bridge depends on two audited libraries, `@noble/curves` and `@noble/hashes`, pinned to
+  exact versions, to sign forecasts. The extension carries only the files the bridge loads from
+  them.
+
 ## [0.2.0] - 2026-11-05
 
 ### Added
@@ -37,6 +59,7 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.0
 [0.1.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.0

@@ -14,6 +14,9 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+      # @noble/curves pins the @noble/hashes it was released with: they move together.
+      noble:
+        patterns: ["@noble/*"]
     ignore:
       # The types follow the oldest Node.js the package supports.
       - dependency-name: "@types/node"

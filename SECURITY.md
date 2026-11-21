@@ -13,7 +13,7 @@ unless you would rather we did not.
 
 ## Scope
 
-- This package, `@hyperodds/mcp`.
+- This package, `@hyperodds/mcp`, including how it keeps the forecaster key and what it signs.
 - The hosted MCP endpoint it talks to, `https://api.usehyperodds.com/mcp`.
 
 Report problems in the console at usehyperodds.com the same way. Issues in Hyperliquid,

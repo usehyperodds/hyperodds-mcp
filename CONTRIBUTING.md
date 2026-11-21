@@ -2,8 +2,8 @@
 
 Thanks for helping. This repository holds `@hyperodds/mcp`, the stdio bridge to the hosted
 Hyperodds MCP server.
-- A bug in how the bridge relays messages, a client it does not work with, or a gap in these
-  docs: open an issue or a pull request here.
+- A bug in how the bridge relays messages or signs forecasts, a client it does not work with, or
+  a gap in these docs: open an issue or a pull request here.
 - A tool's output, a missing field or a new tool: open a
   [feature request](https://github.com/usehyperodds/hyperodds-mcp/issues/new?template=feature_request.yml).
   Those changes ship on the hosted server, with no new package version.
@@ -34,7 +34,8 @@ To try a change in a real client, point the client's command at your build:
 ## Pull requests
 
 - Keep each pull request to one change, with a test that fails without it.
-- Keep the package dependency-free; it runs through `npx` every time a client starts it.
+- Keep dependencies to the two audited `@noble` libraries the bridge signs with. It runs through
+  `npx` every time a client starts it, and the extension carries every file it loads.
 - Write commit messages in the imperative, short and lowercase: `answer batched requests one by one`.
 - Describe how you tested it, including the client and Node version if it matters.
 
