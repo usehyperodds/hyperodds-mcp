@@ -372,20 +372,26 @@ describe("forecasts signed on this computer", () => {
     );
   });
 
-  test("refuses forecasts it cannot sign, and sends nothing", async () => {
+  test("refuses forecasts it cannot sign with the server's codes, and sends nothing", async () => {
     const h = signing();
     await h.call(1, "odds_forecast", { forecasts: [{ outcome: 42400, probabilityBps: 0 }] });
     await h.call(2, "odds_forecast", {
       forecasts: Array.from({ length: 51 }, (_, i) => ({ outcome: i, probabilityBps: 5000 })),
     });
+    await h.call(3, "odds_forecast", { forecasts: [] });
     assert.equal(h.sent.length, 0);
-    for (const { result } of h.out) {
-      assert.equal(result.isError, true);
-      assert.match(
-        result.content[0].text,
-        /probabilityBps from 1 to 9999, and one call takes 1 to 50 of them/,
-      );
-    }
+    assert.deepEqual(
+      h.out.map(({ result }) => [result.isError, result.structuredContent, result.content[0].text]),
+      [
+        [
+          true,
+          { code: "invalid_request", entries: [] },
+          "Each forecast takes an outcome id and a probabilityBps, a whole number from 1 to 9999.",
+        ],
+        [true, { code: "batch_size", entries: [] }, "One call takes 1 to 50 forecasts, not 51."],
+        [true, { code: "batch_size", entries: [] }, "One call takes 1 to 50 forecasts, not 0."],
+      ],
+    );
   });
 
   test("says this computer's clock is off when the server refuses the forecasts' time", async () => {

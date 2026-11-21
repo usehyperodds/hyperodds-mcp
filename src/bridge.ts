@@ -7,7 +7,7 @@
  * message for this computer's forecaster, signs it here and records it.
  */
 import { dirname, join } from "node:path";
-import { checkEntries, digest, type Entry, forecastMessage } from "./forecast.js";
+import { checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
 import { type KeySource, openKey, type Signer } from "./key.js";
 import { SignedTimes } from "./times.js";
 
@@ -76,8 +76,9 @@ function rpcError(id: Id | null, code: number, message: string) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 
-function toolError(id: Id, text: string): Message {
-  return { jsonrpc: "2.0", id, result: { content: [{ type: "text", text }], isError: true } };
+function toolError(id: Id, text: string, structuredContent?: Json): Message {
+  const result = { content: [{ type: "text", text }], isError: true };
+  return { jsonrpc: "2.0", id, result: structuredContent ? { ...result, structuredContent } : result };
 }
 
 const withArguments = (msg: Message, args: Json): Message => ({
@@ -220,7 +221,8 @@ export class Bridge {
     try {
       entries = checkEntries(args.forecasts);
     } catch (error) {
-      return toolError(id, (error as Error).message);
+      if (!(error instanceof EntryError)) throw error;
+      return toolError(id, error.message, { code: error.code, entries: [] });
     }
     const nowMs = (this.opts.now ?? Date.now)();
     const outcomes = entries.map((e) => e.outcome);

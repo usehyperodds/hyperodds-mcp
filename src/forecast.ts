@@ -116,12 +116,25 @@ const isEntry = (e: unknown): e is Entry => {
   );
 };
 
+/** Forecasts the bridge can't sign, with the code the server gives the same refusal. */
+export class EntryError extends Error {
+  constructor(
+    readonly code: "batch_size" | "invalid_request",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 /** The forecasts asked for, if they can be signed: 1 to 50, each an outcome id and a probabilityBps. */
 export function checkEntries(entries: unknown): Entry[] {
-  if (!Array.isArray(entries) || entries.length < 1 || entries.length > MAX_BATCH || !entries.every(isEntry))
-    throw new Error(
-      "Each forecast takes an outcome id and a probabilityBps from 1 to 9999, and one call takes 1 to 50 of them.",
+  if (!Array.isArray(entries) || !entries.every(isEntry))
+    throw new EntryError(
+      "invalid_request",
+      "Each forecast takes an outcome id and a probabilityBps, a whole number from 1 to 9999.",
     );
+  if (entries.length < 1 || entries.length > MAX_BATCH)
+    throw new EntryError("batch_size", `One call takes 1 to 50 forecasts, not ${entries.length}.`);
   return entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
 }
 

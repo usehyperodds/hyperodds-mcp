@@ -79,7 +79,9 @@ describe("the message built for this computer's key", () => {
       "an outcome past uint32": [{ ...entry, outcome: 2 ** 32 }],
       "not a list": entry,
     };
-    for (const [name, entries] of Object.entries(bad))
-      assert.throws(() => checkEntries(entries), /1 to 50 of them/, name);
+    for (const [name, entries] of Object.entries(bad)) {
+      const code = name === "none" || name === "more than 50" ? "batch_size" : "invalid_request";
+      assert.throws(() => checkEntries(entries), { name: "Error", code }, name);
+    }
   });
 });
