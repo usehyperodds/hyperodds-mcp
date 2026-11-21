@@ -27,6 +27,6 @@ up the new version the next time the client starts it.
 
 An extension installed from a file does not update itself. To upgrade the Claude Desktop
 extension, download `hyperodds.mcpb` from the
-[latest release](https://github.com/usehyperodds/hyperodds-mcp/releases/latest) and open it in
-Claude Desktop. The [README](https://github.com/usehyperodds/hyperodds-mcp#quick-start) shows how
-to check the file first.
+[latest release](https://github.com/usehyperodds/hyperodds-mcp/releases/latest) and open it. The
+[README](https://github.com/usehyperodds/hyperodds-mcp#quick-start) shows how to check the file
+first.

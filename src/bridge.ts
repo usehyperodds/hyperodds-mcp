@@ -35,7 +35,7 @@ export interface BridgeOptions {
   /** Diagnostics, which the client shows in its server log; never the protocol channel. */
   log: (line: string) => void;
   userAgent: string;
-  /** Added when the server cannot be reached or does not answer: which proxy is in use, or why none is. */
+  /** Appended to errors where nothing answered, such as which proxy is in use. */
   networkNote?: string;
   timeoutMs?: number;
   fetch?: typeof fetch;

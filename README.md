@@ -30,21 +30,19 @@ dependencies. No tool can trade, move funds or access an account.
 Claude Desktop installs Hyperodds as an extension: download
 [`hyperodds.mcpb`](https://github.com/usehyperodds/hyperodds-mcp/releases/latest/download/hyperodds.mcpb)
 from the latest release and open it. Claude Desktop lists the tools and adds them when you select
-Install. The extension is this bridge, and it runs on the Node.js that comes with Claude Desktop.
+Install. The extension is this bridge, and it runs on the Node.js built into the app.
 
-To check the file before you open it, compare its SHA-256 with the one in the release notes
-(`shasum -a 256 hyperodds.mcpb` on macOS, `certutil -hashfile hyperodds.mcpb SHA256` on Windows),
-or confirm with the GitHub CLI that this repository's release workflow built it:
+The file is not certificate-signed. To check where it came from before you open it, compare its
+SHA-256 with the one in the release notes (`shasum -a 256 hyperodds.mcpb` on macOS,
+`certutil -hashfile hyperodds.mcpb SHA256` on Windows), or verify with the GitHub CLI that GitHub
+Actions built it in this repository:
 
 ```sh
 gh attestation verify hyperodds.mcpb --repo usehyperodds/hyperodds-mcp
 ```
 
-The file is not signed with an MCPB certificate, so these checks are how to confirm where it came
-from.
-
-To add the bridge by hand, Claude Desktop (Settings > Developer > Edit Config), Cursor
-(`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) and Windsurf take this entry:
+To add the bridge by hand, use this entry in Claude Desktop (Settings > Developer > Edit Config),
+Cursor (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) or Windsurf:
 
 ```json
 {
@@ -218,17 +216,18 @@ The bridge reads its settings from the environment. In an entry you add by hand,
 ```
 
 The extension uses the hosted server unless `HYPERODDS_MCP_URL` is set in the environment its host
-starts it with. Claude Desktop does not pass your own environment variables to extensions, so there
-it always uses the hosted server, and the extension's own settings hold the forecaster key and turn
-signing on or off.
+starts it with. Claude Desktop does not pass your own environment variables to extensions, so in
+Claude Desktop it always uses the hosted server, and the extension's own settings hold the
+forecaster key and turn signing on or off.
 
 Behind a proxy, add `HTTPS_PROXY` and `NODE_USE_ENV_PROXY=1` to the same `env`. Node.js uses the
-proxy only when the second is set, which needs Node.js 22.21, 24.5 or later; `--help` lists the
-other proxy variables. When the server cannot be reached, the error names the proxy, or says why
-a proxy that is set goes unused.
+proxy only when the second is set, and only in versions 22.21, 24.5 or later. `--help` lists the
+other proxy variables. When the server cannot be reached, the error names the proxy, or says why a
+proxy that is set goes unused.
 
-npx downloads the package through the same proxy. Any npm registry token travels encrypted, but a
-proxy that decrypts TLS can read it, so use a proxy you trust.
+When npx fetches the package, it goes through the same proxy. If your npm config holds a registry
+token, npm (checked with 11.9) sends it in plain text in the proxy's CONNECT request. Use only a
+proxy you trust, or remove the token from your npm config.
 
 The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
 `HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
@@ -244,9 +243,10 @@ npm ci
 npm test
 ```
 
-`npm run lint` and `npm run typecheck` run the other checks CI runs. `npm run mcpb` packs the
-Claude Desktop extension into `build/hyperodds.mcpb` from `mcpb/manifest.json`, the icon beside it
-and the built bridge; the release workflow attaches the same file to each GitHub release. See
+`npm run lint` and `npm run typecheck` run the other checks CI runs. `npm run mcpb` builds the
+bridge and packs it with the manifest and icons in `mcpb/`, and the files it loads from its two
+dependencies, into `build/hyperodds.mcpb`, the file the release workflow attaches to each GitHub
+release. See
 [CONTRIBUTING.md](https://github.com/usehyperodds/hyperodds-mcp/blob/main/CONTRIBUTING.md) before
 opening a pull request.
 

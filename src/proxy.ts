@@ -1,14 +1,13 @@
 /**
  * Node.js reads the proxy variables once, at startup, and only with NODE_USE_ENV_PROXY=1 or
- * --use-env-proxy (22.21 and later, 24.5 and later). fetch then follows undici's rules, which this
- * mirrors so errors can say what happened: a lowercase variable that is set, even to "", wins over
- * the uppercase one.
+ * --use-env-proxy (22.21+ or 24.5+). fetch then follows undici's rules, which this mirrors so errors
+ * can say what happened: a lowercase variable that is set, even to "", wins over the uppercase one.
  */
 
 type Env = Record<string, string | undefined>;
 
 export interface ProxyNote {
-  /** Added to errors when the server cannot be reached. */
+  /** Which proxy is in use, or why a proxy that is set goes unused. */
   text: string;
   /** True when a proxy is set but Node.js does not use it. */
   ignored: boolean;

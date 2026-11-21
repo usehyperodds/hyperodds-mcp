@@ -279,7 +279,7 @@ describe("hyperodds-mcp", () => {
     assert.equal(typo.code, 2);
     assert.doesNotMatch(typo.stderr, /s3cret/);
 
-    // Nothing listens on port 1. The error names the server without its query string.
+    // Nothing listens on port 1.
     const keyed = await ask(
       { jsonrpc: "2.0", id: 1, method: "ping" },
       { ...noProxy, HYPERODDS_MCP_URL: "http://127.0.0.1:1/mcp?key=s3cret" },
@@ -288,7 +288,7 @@ describe("hyperodds-mcp", () => {
     assert.doesNotMatch(JSON.stringify(keyed), /s3cret/);
   });
 
-  test("names the proxy when it cannot be reached, and says when a proxy goes unused", async () => {
+  test("names the proxy when the server cannot be reached, and says when a proxy goes unused", async () => {
     const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
     const server = { ...noProxy, HYPERODDS_MCP_URL: "https://hyperodds.test/mcp" };
     // Nothing listens on port 1, so the proxy refuses at once.
