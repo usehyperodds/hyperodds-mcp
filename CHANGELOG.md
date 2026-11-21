@@ -8,8 +8,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 ### Added
 
 - A Claude Desktop extension, `hyperodds.mcpb`, attached to each GitHub release. Open it in Claude
-  Desktop to install the bridge with one click; it runs on the Node.js that comes with Claude
-  Desktop, and uses a proxy its host passes in `HTTPS_PROXY`.
+  Desktop and select Install. It runs on the Node.js built into the app, and uses a proxy its host
+  passes in `HTTPS_PROXY`.
 - When the server cannot be reached, the error names the proxy in use, or says why a proxy that is
   set goes unused. `--help` lists the proxy variables.
 
@@ -17,8 +17,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 - `HYPERODDS_MCP_URL` with a username or password is refused at startup, and errors no longer
   repeat its value or its query string.
-- When the server turns away a notification without a JSON-RPC answer, the server log says so with
-  the HTTP status. Before, the failure went unrecorded.
+- When the server turns away a notification without a JSON-RPC answer, the server log now records
+  it with the HTTP status.
 
 ## [0.1.1] - 2026-11-04
 

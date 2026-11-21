@@ -45,8 +45,7 @@ By contributing, you agree to release your work under the [MIT license](LICENSE)
 
 Maintainers release from `main`: bump the version in `package.json` and `mcpb/manifest.json`, add
 the entry to [CHANGELOG.md](CHANGELOG.md) and push a `vX.Y.Z` tag. The release workflow checks the
-tag against `package.json`, publishes to npm with provenance, so the package links back to the
-commit and workflow that built it, and opens the GitHub release from the changelog entry with the
-Claude Desktop extension, `hyperodds.mcpb`, attached. The extension gets a build attestation, and
-its SHA-256 goes in the release notes. If a run fails partway, re-run it: it skips what an earlier
-run already published.
+tag against `package.json` and publishes to npm with provenance, so the package links back to the
+commit and workflow that built it. It then opens the GitHub release from the changelog entry and
+attaches the Claude Desktop extension, `hyperodds.mcpb`, with a build attestation and its SHA-256
+in the notes. If a run fails partway, re-run it: it skips what an earlier run already published.
