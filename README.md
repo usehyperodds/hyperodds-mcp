@@ -136,14 +136,12 @@ day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
 
 ## Configuration
 
-These settings apply to the entry you add by hand. The Claude Desktop extension always uses the
-hosted server.
+The bridge reads its settings from the environment. In an entry you add by hand, set them in
+`env`:
 
 | Variable            | Default                            | Purpose                  |
 | ------------------- | ---------------------------------- | ------------------------ |
 | `HYPERODDS_MCP_URL` | `https://api.usehyperodds.com/mcp` | The server to forward to |
-
-Set it in the client entry's `env`:
 
 ```json
 {
@@ -153,8 +151,20 @@ Set it in the client entry's `env`:
 }
 ```
 
-Behind a proxy, add `HTTPS_PROXY` and `NODE_USE_ENV_PROXY=1` to the same `env`. Node.js reads the
-proxy only when the second is set, which needs Node.js 22.21 or later.
+The extension uses the hosted server unless `HYPERODDS_MCP_URL` is set in the environment its host
+starts it with. Claude Desktop does not pass your own environment variables to extensions, so there
+it always uses the hosted server.
+
+Behind a proxy, add `HTTPS_PROXY` and `NODE_USE_ENV_PROXY=1` to the same `env`. Node.js uses the
+proxy only when the second is set, which needs Node.js 22.21, 24.5 or later; `--help` lists the
+other proxy variables. When the server cannot be reached, the error names the proxy, or says why
+a proxy that is set goes unused.
+
+npx downloads the package through the same proxy. Any npm registry token travels encrypted, but a
+proxy that decrypts TLS can read it, so use a proxy you trust.
+
+The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
+`HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
 
 `npx -y @hyperodds/mcp --help` and `--version` print the usage and the version.
 
