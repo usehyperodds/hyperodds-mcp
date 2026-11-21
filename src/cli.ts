@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { Bridge } from "./bridge.js";
+import { proxyNote } from "./proxy.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 const DEFAULT_URL = "https://api.usehyperodds.com/mcp";
@@ -11,11 +12,16 @@ Connects an MCP client on stdio to Hyperodds: read-only data on Hyperliquid HIP-
 markets. Add it to your client with the command: npx -y @hyperodds/mcp
 
 Options:
-  -h, --help          show this help
-  -v, --version       show the version
+  -h, --help           show this help
+  -v, --version        show the version
 
 Environment:
-  HYPERODDS_MCP_URL   server to forward to (default ${DEFAULT_URL})
+  HYPERODDS_MCP_URL    server to forward to (default ${DEFAULT_URL})
+  HTTPS_PROXY          proxy for an https server
+  HTTP_PROXY           proxy for an http server
+  NO_PROXY             hosts to reach without the proxy
+  NODE_USE_ENV_PROXY   1 turns on the three above (Node.js 22.21, 24.5 or later)
+  The proxy variables also work in lowercase, which takes precedence.
 
 Docs: https://usehyperodds.com/docs/mcp`;
 
@@ -46,6 +52,9 @@ if (target.protocol !== "https:" && target.protocol !== "http:")
 const shown = `${target.origin}${target.pathname}`;
 
 const log = (line: string) => process.stderr.write(`hyperodds-mcp: ${line}\n`);
+const flags = [...process.execArgv, ...(process.env.NODE_OPTIONS ?? "").split(/\s+/)];
+const proxy = proxyNote(target, process.env, process.versions.node, flags);
+if (proxy?.ignored) log(proxy.text);
 // The client went away: nothing is left to answer.
 process.stdout.on("error", () => process.exit(0));
 const bridge = new Bridge({
@@ -54,6 +63,7 @@ const bridge = new Bridge({
   write: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
+  networkNote: proxy?.text,
 });
 
 if (process.stdin.isTTY)

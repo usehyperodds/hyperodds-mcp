@@ -23,6 +23,8 @@ export interface BridgeOptions {
   /** Diagnostics, which the client shows in its server log; never the protocol channel. */
   log: (line: string) => void;
   userAgent: string;
+  /** Added when the server cannot be reached or does not answer: which proxy is in use, or why none is. */
+  networkNote?: string;
   timeoutMs?: number;
   fetch?: typeof fetch;
 }
@@ -135,7 +137,7 @@ export class Bridge {
     } catch (error) {
       const reason = controller.signal.reason;
       if (reason === "cancelled" || reason === "shutdown") return;
-      this.report(replyTo, failureText(error, reason, this.opts.label, this.timeoutMs));
+      this.report(replyTo, failureText(error, reason, this.opts, this.timeoutMs));
       return;
     } finally {
       clearTimeout(timer);
@@ -185,12 +187,14 @@ export class Bridge {
   }
 }
 
-function failureText(error: unknown, reason: unknown, label: string, timeoutMs: number): string {
-  if (reason === "timeout") return `${label} did not answer within ${timeoutMs / 1000} seconds.`;
+function failureText(error: unknown, reason: unknown, opts: BridgeOptions, timeoutMs: number): string {
+  const { label, networkNote } = opts;
+  const note = networkNote ? ` ${networkNote}` : "";
+  if (reason === "timeout") return `${label} did not answer within ${timeoutMs / 1000} seconds.${note}`;
   if (error instanceof SyntaxError) return `${label} sent an answer that is not valid JSON.`;
   const code = (error as { cause?: { code?: unknown } })?.cause?.code;
   const detail = typeof code === "string" ? code : error instanceof Error ? error.message : String(error);
-  return `Could not reach ${label} (${detail}).`;
+  return `Could not reach ${label} (${detail}).${note}`;
 }
 
 async function* eventData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {

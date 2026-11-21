@@ -185,4 +185,27 @@ describe("hyperodds-mcp", () => {
     assert.match(keyed.answer.error.message, /^Could not reach http:\/\/127\.0\.0\.1:1\/mcp \(set by/);
     assert.doesNotMatch(JSON.stringify(keyed), /s3cret/);
   });
+
+  test("names the proxy when it cannot be reached, and says when a proxy goes unused", async () => {
+    const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+    const server = { ...noProxy, HYPERODDS_MCP_URL: "https://hyperodds.test/mcp" };
+    // Nothing listens on port 1, so the proxy refuses at once.
+    const proxied = await ask(ping, {
+      ...server,
+      NODE_USE_ENV_PROXY: "1",
+      HTTPS_PROXY: "http://user:s3cret@127.0.0.1:1",
+    });
+    assert.match(
+      proxied.answer.error.message,
+      /\(ECONNREFUSED\)\. Requests go through the proxy http:\/\/127\.0\.0\.1:1 from HTTPS_PROXY\.$/,
+    );
+    assert.doesNotMatch(JSON.stringify(proxied), /s3cret/);
+
+    const unused = await run("", { ...server, HTTPS_PROXY: "http://user:s3cret@127.0.0.1:1" });
+    assert.equal(
+      unused.stderr,
+      "hyperodds-mcp: HTTPS_PROXY is set, but Node.js ignores it unless NODE_USE_ENV_PROXY=1 is set as well.\n",
+    );
+    assert.match((await run("", {}, ["--help"])).lines.join("\n"), /HTTPS_PROXY[\s\S]*NODE_USE_ENV_PROXY/);
+  });
 });

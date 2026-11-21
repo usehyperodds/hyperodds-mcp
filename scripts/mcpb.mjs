@@ -20,6 +20,7 @@ const files = {
   LICENSE: "LICENSE",
   "dist/cli.js": "dist/cli.js",
   "dist/bridge.js": "dist/bridge.js",
+  "dist/proxy.js": "dist/proxy.js",
 };
 
 if (manifest.version !== pkg.version) {
