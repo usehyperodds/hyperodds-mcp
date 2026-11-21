@@ -133,7 +133,7 @@ export function checkEntries(entries: unknown): Entry[] {
       "Each forecast takes an outcome id and a probabilityBps, a whole number from 1 to 9999.",
     );
   if (entries.length < 1 || entries.length > MAX_BATCH)
-    throw new EntryError("batch_size", `One call takes 1 to 50 forecasts, not ${entries.length}.`);
+    throw new EntryError("batch_size", "Send from 1 to 50 forecasts at a time.");
   return entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
 }
 

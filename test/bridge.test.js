@@ -392,12 +392,12 @@ describe("forecasts signed on this computer", () => {
         [
           true,
           { status: "refused", code: "batch_size", entries: [] },
-          "One call takes 1 to 50 forecasts, not 51.",
+          "Send from 1 to 50 forecasts at a time.",
         ],
         [
           true,
           { status: "refused", code: "batch_size", entries: [] },
-          "One call takes 1 to 50 forecasts, not 0.",
+          "Send from 1 to 50 forecasts at a time.",
         ],
       ],
     );
