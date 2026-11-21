@@ -28,7 +28,8 @@
     "entry_point": "dist/cli.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/cli.js"]
+      "args": ["${__dirname}/dist/cli.js"],
+      "env": { "NODE_USE_ENV_PROXY": "1" }
     }
   },
   "tools": [
