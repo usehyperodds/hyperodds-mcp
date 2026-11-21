@@ -141,8 +141,11 @@ export class Bridge {
       clearTimeout(timer);
       this.open.delete(key);
     }
-    if (replyTo !== null && !answered)
+    if (answered) return;
+    if (replyTo !== null)
       this.report(replyTo, `${this.opts.label} replied HTTP ${status} with no JSON-RPC response.`);
+    else if (status >= 300)
+      this.opts.log(`${this.opts.label} replied HTTP ${status} to a message the client sent.`);
   }
 
   private report(replyTo: Id | null, why: string): void {
@@ -150,7 +153,10 @@ export class Bridge {
     if (replyTo !== null) this.opts.write(rpcError(replyTo, INTERNAL_ERROR, why));
   }
 
-  /** Passes a server message to the client; true when it is the response to `replyTo`. */
+  /**
+   * Passes a server message to the client; true when it settles the message sent: the response to
+   * `replyTo`, or the refusal of a message that expects no response.
+   */
   private deliver(body: Message, replyTo: Id | null): boolean {
     if (!isObject(body) || body.jsonrpc !== "2.0") return false;
     // Refusals made before the server has read the message (the burst limit, an oversized or
@@ -158,7 +164,7 @@ export class Bridge {
     const refusal = body.error !== undefined && body.id === null;
     if (refusal && replyTo === null) {
       this.opts.log(`${this.opts.label} refused a message the client sent: ${JSON.stringify(body.error)}`);
-      return false;
+      return true;
     }
     const out = refusal ? { ...body, id: replyTo } : body;
     const isResponse = out.method === undefined && replyTo !== null && out.id === replyTo;

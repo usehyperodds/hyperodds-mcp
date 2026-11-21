@@ -94,7 +94,26 @@ describe("bridge", () => {
     const n = harness(limited);
     await n.send({ jsonrpc: "2.0", method: "notifications/initialized" });
     assert.deepEqual(n.out, []);
+    assert.equal(n.logs.length, 1);
     assert.match(n.logs[0], /refused a message/);
+  });
+
+  test("a notification the server turns away without a JSON-RPC answer goes to the log", async () => {
+    const answers = {
+      edge: () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      notRpc: () => json({ error: "method not allowed" }, 405),
+    };
+    for (const [name, answer] of Object.entries(answers)) {
+      const h = harness(answer);
+      await h.send({ jsonrpc: "2.0", method: "notifications/initialized" });
+      assert.deepEqual(h.out, [], name);
+      assert.equal(h.logs.length, 1, name);
+      assert.match(h.logs[0], /^Hyperodds replied HTTP \d+ to a message the client sent\.$/, name);
+    }
+
+    const h = harness(accepted);
+    await h.send({ jsonrpc: "2.0", method: "notifications/initialized" });
+    assert.deepEqual(h.logs, []);
   });
 
   test("every request gets one answer, whatever comes back", async () => {
