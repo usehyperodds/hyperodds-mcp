@@ -40,7 +40,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test": "npm run build && node --test test/bridge.test.js test/cli.test.js test/mcpb.test.js",
+    "test": "npm run build && node --test test/forecast.test.js test/bridge.test.js test/cli.test.js test/mcpb.test.js",
     "mcpb": "npm run build && node scripts/mcpb.mjs",
     "prepack": "npm run build"
   },
@@ -52,5 +52,9 @@
   },
   "overrides": {
     "tmp": "^0.2.7"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   }
 }
