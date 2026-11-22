@@ -37,7 +37,11 @@ function bypassed(target: URL, noProxy: string): boolean {
 /** `flags` are the Node.js options in effect: process.execArgv and those in NODE_OPTIONS. */
 export function proxyNote(target: URL, env: Env, version: string, flags: string[]): ProxyNote | undefined {
   const scheme = target.protocol === "https:" ? "https" : "http";
-  const name = [`${scheme}_proxy`, `${scheme.toUpperCase()}_PROXY`].find((n) => env[n] !== undefined);
+  // Windows looks variables up regardless of case, so name the one actually set, as its own keys spell it.
+  const keys = Object.keys(env);
+  const name =
+    [`${scheme}_proxy`, `${scheme.toUpperCase()}_PROXY`].find((n) => keys.includes(n)) ??
+    keys.find((k) => k.toLowerCase() === `${scheme}_proxy`);
   const value = name && env[name];
   if (!name || !value) return;
   if (env.NODE_USE_ENV_PROXY !== "1" && !flags.includes("--use-env-proxy"))

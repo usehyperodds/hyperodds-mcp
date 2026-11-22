@@ -3,7 +3,7 @@ import { execFile, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join, sep } from "node:path";
+import { join, normalize, sep } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -147,7 +147,11 @@ describe("Claude Desktop extension", () => {
       pathSeparator: sep,
     });
     assert.equal(config.command, "node");
-    assert.deepEqual(config.args, [join(dir, "dist", "cli.js")]);
+    // mcpb fills in ${__dirname} with forward slashes on Windows too; Node accepts either.
+    assert.deepEqual(
+      config.args.map((a) => normalize(a)),
+      [join(dir, "dist", "cli.js")],
+    );
     // Hosts pass their proxy settings as HTTPS_PROXY and friends; Node.js uses them only with this.
     assert.equal(config.env.NODE_USE_ENV_PROXY, "1");
 
