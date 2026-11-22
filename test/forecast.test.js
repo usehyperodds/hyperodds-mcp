@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { checkEntries, DOMAIN_SEPARATOR, digest, forecastMessage, TYPE_HASHES } from "../dist/forecast.js";
+import {
+  checkArguments,
+  checkEntries,
+  DOMAIN_SEPARATOR,
+  digest,
+  forecastMessage,
+  TYPE_HASHES,
+} from "../dist/forecast.js";
 import { TEST_ADDRESS, vectors } from "./vectors.js";
 
 describe("forecast messages", () => {
@@ -45,7 +52,7 @@ describe("the message built for this computer's key", () => {
 
     const one = forecastMessage(
       forecaster,
-      checkEntries([{ outcome: 42400, probabilityBps: 6200, note: "dropped" }]),
+      checkEntries([{ outcome: 42400, probabilityBps: 6200 }]),
       1763719200,
     );
     assert.equal(one.type, "Forecast");
@@ -60,7 +67,14 @@ describe("the message built for this computer's key", () => {
     const nonces = new Set(
       Array.from(
         { length: 200 },
-        () => forecastMessage(forecaster, checkEntries([vectors[0].message]), 1763719200).message.nonce,
+        () =>
+          forecastMessage(
+            forecaster,
+            checkEntries([
+              { outcome: vectors[0].message.outcome, probabilityBps: vectors[0].message.probabilityBps },
+            ]),
+            1763719200,
+          ).message.nonce,
       ),
     );
     assert.equal(nonces.size, 200);
@@ -78,10 +92,23 @@ describe("the message built for this computer's key", () => {
       "a negative outcome": [{ ...entry, outcome: -1 }],
       "an outcome past uint32": [{ ...entry, outcome: 2 ** 32 }],
       "not a list": entry,
+      "a key a forecast doesn't take": [entry, { ...entry, outcome: 42401, side: 1 }],
     };
     for (const [name, entries] of Object.entries(bad)) {
       const code = name === "none" || name === "more than 50" ? "batch_size" : "invalid_request";
       assert.throws(() => checkEntries(entries), { name: "Error", code }, name);
     }
+    assert.throws(() => checkEntries([{ ...entry, side: 1, note: "x" }]), {
+      code: "invalid_request",
+      message: "Each forecast takes only an outcome id and a probabilityBps, not side, note.",
+    });
+  });
+
+  test("odds_forecast's arguments are signed, forecasts and forecaster, and no other", () => {
+    assert.doesNotThrow(() => checkArguments({ forecasts: [], forecaster: "0x" }));
+    assert.throws(() => checkArguments({ forecasts: [], forecastr: "0x" }), {
+      code: "invalid_request",
+      message: "odds_forecast takes signed, or forecasts with an optional forecaster, not forecastr.",
+    });
   });
 });

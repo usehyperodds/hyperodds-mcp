@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
@@ -398,6 +398,39 @@ describe("forecasts signed on this computer", () => {
           true,
           { status: "refused", code: "batch_size", entries: [] },
           "Send from 1 to 50 forecasts at a time.",
+        ],
+      ],
+    );
+  });
+
+  test("refuses an argument or an entry key it doesn't take, as the server does, before any key is made", async () => {
+    const h = signing();
+    const entry = { outcome: 42400, probabilityBps: 6200 };
+    await h.call(1, "odds_forecast", { forecasts: [{ ...entry, side: 1 }] });
+    await h.call(2, "odds_forecast", {
+      forecasts: [entry],
+      forecastr: "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+    });
+    await h.call(3, "odds_forecast", { forecasts: [entry], sort: "edge", note: "x" });
+    assert.equal(h.sent.length, 0);
+    assert.equal(existsSync(h.path), false);
+    assert.deepEqual(
+      h.out.map(({ result }) => [result.isError, result.structuredContent, result.content[0].text]),
+      [
+        [
+          true,
+          { status: "refused", code: "invalid_request", entries: [] },
+          "Each forecast takes only an outcome id and a probabilityBps, not side.",
+        ],
+        [
+          true,
+          { status: "refused", code: "invalid_request", entries: [] },
+          "odds_forecast takes signed, or forecasts with an optional forecaster, not forecastr.",
+        ],
+        [
+          true,
+          { status: "refused", code: "invalid_request", entries: [] },
+          "odds_forecast takes signed, or forecasts with an optional forecaster, not sort, note.",
         ],
       ],
     );

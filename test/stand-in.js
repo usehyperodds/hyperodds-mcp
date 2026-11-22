@@ -25,6 +25,7 @@ const REFUSAL_CODES = [
   "rate_limited",
   "daily_cap",
   "ip_daily_cap",
+  "ip_day_cap",
   "day_full",
   "internal",
   "loading",

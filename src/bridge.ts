@@ -7,7 +7,7 @@
  * server as a message the bridge built and signed itself.
  */
 import { dirname, join } from "node:path";
-import { checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
+import { checkArguments, checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
 import { type KeySource, openKey, type Signer } from "./key.js";
 import { SignedTimes } from "./times.js";
 
@@ -207,9 +207,19 @@ export class Bridge {
 
   /**
    * Signs the forecasts here. A forecaster the client names that isn't this computer's goes to the
-   * server as is, for a sign link to that wallet.
+   * server as is, for a sign link to that wallet. Arguments and entries the server would refuse are
+   * refused here first, in its words and codes.
    */
   private async forecast(msg: Message, id: Id, args: Json, keys: KeySource, signal: AbortSignal) {
+    // Checked before any key is read or made, and refused with the server's codes.
+    let entries: Entry[];
+    try {
+      checkArguments(args);
+      entries = checkEntries(args.forecasts);
+    } catch (error) {
+      if (!(error instanceof EntryError)) throw error;
+      return toolError(id, error.message, error.code);
+    }
     let signer: Signer | null;
     try {
       signer = openKey(keys, args.forecaster === undefined);
@@ -222,13 +232,6 @@ export class Bridge {
     )
       return this.send(msg, id, signal);
 
-    let entries: Entry[];
-    try {
-      entries = checkEntries(args.forecasts);
-    } catch (error) {
-      if (!(error instanceof EntryError)) throw error;
-      return toolError(id, error.message, error.code);
-    }
     const nowMs = (this.opts.now ?? Date.now)();
     const outcomes = entries.map((e) => e.outcome);
     const times = this.times!;
