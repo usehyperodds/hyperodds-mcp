@@ -3,10 +3,15 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-22
 
 ### Added
 
+- A Claude Desktop extension, `hyperodds.mcpb`, attached to each GitHub release. Open it in Claude
+  Desktop and select Install. It runs on the Node.js built into the app, and uses a proxy its host
+  passes in `HTTPS_PROXY`.
+- When the server cannot be reached, the error names the proxy in use, or says why a proxy that is
+  set goes unused. `--help` lists the proxy variables.
 - Forecasts signed on your machine. One `odds_forecast` call signs an agent's forecasts and enters
   them in Hyperodds' public record, in a single request. The bridge builds each message itself
   from the forecasts asked for, and never signs anything a server sends it. The answer names the
@@ -30,25 +35,12 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ### Changed
 
-- The bridge signs forecasts with two audited libraries, `@noble/curves` and `@noble/hashes`,
-  pinned to exact versions. The extension carries only the files the bridge loads from them.
-
-## [0.2.0] - 2026-11-05
-
-### Added
-
-- A Claude Desktop extension, `hyperodds.mcpb`, attached to each GitHub release. Open it in Claude
-  Desktop and select Install. It runs on the Node.js built into the app, and uses a proxy its host
-  passes in `HTTPS_PROXY`.
-- When the server cannot be reached, the error names the proxy in use, or says why a proxy that is
-  set goes unused. `--help` lists the proxy variables.
-
-### Changed
-
 - `HYPERODDS_MCP_URL` with a username or password is refused at startup, and errors no longer
   repeat its value or its query string.
 - When the server turns away a notification without a JSON-RPC answer, the server log now records
   it with the HTTP status.
+- The bridge signs forecasts with two audited libraries, `@noble/curves` and `@noble/hashes`,
+  pinned to exact versions. The extension carries only the files the bridge loads from them.
 
 ## [0.1.1] - 2026-11-04
 
@@ -71,7 +63,6 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
-[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.0
 [0.1.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.0
