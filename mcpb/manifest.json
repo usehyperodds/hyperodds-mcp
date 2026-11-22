@@ -1,0 +1,96 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.3.schema.json",
+  "manifest_version": "0.3",
+  "name": "hyperodds",
+  "display_name": "Hyperodds",
+  "version": "0.2.0",
+  "description": "Live data on Hyperliquid HIP-4 outcome markets from every deployer, and a public record that scores Claude's forecasts against each market's settlement.",
+  "long_description": "Ask Claude about any HIP-4 outcome market on Hyperliquid. Hyperodds answers with the live book and the edge after every fee, measured against a fair line that shows its sources. When more than one deployer lists the same question, it also compares their settlement rules.\n\nClaude can also enter forecasts in Hyperodds' public record: a probability for each market, signed on this computer. Hyperodds records each forecast next to its own fair line and the market price. Each one stays private until the market's cutoff, then appears in the record and is scored once Hyperliquid settles the market. A public board ranks forecasters by how much they beat the fair line.\n\nTry:\n\n- Which HIP-4 markets show the biggest edge after fees right now?\n- Where do the fair lines on the BTC markets come from, and how confident are they?\n- What was listed in the last hour?\n- Forecast today's BTC and ETH markets and enter them in the record.\n\nNo tool can trade, move funds or access an account, and there is nothing to sign up for. The extension forwards each request to the hosted Hyperodds server at api.usehyperodds.com, which allows 1,000 market data calls a day per IP address. Forecast calls don't count toward it.\n\nOn the first forecast, the extension makes a forecaster key and keeps it on this computer, in ~/.config/hyperodds/forecaster.key ($XDG_CONFIG_HOME/hyperodds/forecaster.key when that is set, %APPDATA%\\hyperodds\\forecaster.key on Windows). Hyperodds receives the forecaster's address and the signed forecasts, never the key. With signing on, approving the odds_forecast call in Claude is the only confirmation before forecasts are entered.",
+  "author": {
+    "name": "Hyperodds",
+    "email": "dev@usehyperodds.com",
+    "url": "https://usehyperodds.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usehyperodds/hyperodds-mcp.git"
+  },
+  "homepage": "https://usehyperodds.com",
+  "documentation": "https://usehyperodds.com/docs/mcp",
+  "support": "https://github.com/usehyperodds/hyperodds-mcp/issues",
+  "icon": "icon.png",
+  "icons": [
+    { "src": "icon-light.png", "size": "512x512", "theme": "light" },
+    { "src": "icon-dark.png", "size": "512x512", "theme": "dark" }
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/cli.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/cli.js"],
+      "env": {
+        "NODE_USE_ENV_PROXY": "1",
+        "HYPERODDS_FORECAST_KEY": "${user_config.forecaster_key}",
+        "HYPERODDS_FORECAST_SIGNING": "${user_config.forecast_signing}"
+      }
+    }
+  },
+  "user_config": {
+    "forecaster_key": {
+      "type": "string",
+      "title": "Forecaster key",
+      "description": "Optional. A private key made for forecasts, 64 hex digits, such as this extension's key from another computer. Never use a key that holds funds: to forecast as a wallet you already have, turn signing off and sign the link in that wallet. Leave it empty to use the key the extension makes on the first forecast.",
+      "sensitive": true,
+      "required": false,
+      "default": ""
+    },
+    "forecast_signing": {
+      "type": "boolean",
+      "title": "Sign forecasts on this computer",
+      "description": "When off, each forecast comes back as a sign link for your own wallet.",
+      "required": false,
+      "default": true
+    }
+  },
+  "tools": [
+    {
+      "name": "odds_markets",
+      "description": "HIP-4 markets from every deployer with the book, fair line, edge after fees, 24-hour volume and event time. Filter by category, deployer or text and sort by edge, volume, new or settling."
+    },
+    {
+      "name": "odds_cluster",
+      "description": "For a question more than one deployer lists: each listing's rule grade (SAME, CLOSE or DIFFERENT), the differences found and the merged book."
+    },
+    {
+      "name": "odds_fair",
+      "description": "One market's fair line: probability and band, method, confidence, each source with its weight and age, and the edge after fees for each way to trade."
+    },
+    {
+      "name": "odds_new",
+      "description": "The newest HIP-4 listings first, with the same fields as odds_markets."
+    },
+    {
+      "name": "odds_forecast",
+      "description": "Enters forecasts in Hyperodds' public record: a probability for each of up to 50 markets, signed on this computer. Each stays private until its market's cutoff and is scored against Hyperliquid's settlement."
+    },
+    {
+      "name": "odds_forecast_record",
+      "description": "One forecaster's public record: their board row, forecasts past the cutoff with results and scores, and how many are still private. With signing on and no address, this computer's forecaster."
+    },
+    {
+      "name": "odds_leaderboard",
+      "description": "Forecasters ranked by mean skill over Hyperodds' fair line on settled forecasts, with the fair line and the market price scored as baselines."
+    }
+  ],
+  "tools_generated": true,
+  "keywords": ["hyperliquid", "hip-4", "outcome markets", "prediction markets", "odds", "forecasting"],
+  "license": "MIT",
+  "privacy_policies": ["https://usehyperodds.com/privacy"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=22"
+    }
+  }
+}

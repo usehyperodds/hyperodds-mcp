@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      attestations: write
       contents: write
       id-token: write
     steps:
@@ -28,12 +29,35 @@ jobs:
       - run: npm test
       - name: the tag matches package.json
         run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
-      - run: npm publish --provenance --access public
+      - name: pack the Claude Desktop extension
+        run: node scripts/mcpb.mjs build/hyperodds.mcpb
+      - name: attest that the extension was built here, from this tag
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: build/hyperodds.mcpb
+      # Publishing and the release skip what an earlier run of this tag did, so a failed run can be re-run.
+      - name: publish to npm, unless this version is already there
+        run: |
+          spec="$(node -p 'require("./package.json").name')@${GITHUB_REF_NAME#v}"
+          if npm view "$spec" version > /dev/null 2>&1; then
+            echo "$spec is already on npm."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: GitHub release from the changelog entry
+      - name: GitHub release from the changelog entry, with the extension and its SHA-256
         run: |
           awk '/^## \[/{n++} n==1' CHANGELOG.md | tail -n +2 > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+          sha=$(sha256sum build/hyperodds.mcpb | cut -d ' ' -f 1)
+          printf '\n`hyperodds.mcpb` SHA-256: `%s`. To verify that GitHub Actions built it in this repository, run\n`gh attestation verify hyperodds.mcpb --repo %s`.\n' \
+            "$sha" "$GITHUB_REPOSITORY" >> notes.md
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" build/hyperodds.mcpb --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" build/hyperodds.mcpb --title "$GITHUB_REF_NAME" \
+              --notes-file notes.md --verify-tag
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

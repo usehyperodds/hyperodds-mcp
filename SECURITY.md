@@ -13,7 +13,8 @@ unless you would rather we did not.
 
 ## Scope
 
-- This package, `@hyperodds/mcp`.
+- This package, `@hyperodds/mcp`, and the Claude Desktop extension built from it, `hyperodds.mcpb`,
+  including how they keep the forecaster key and what they sign.
 - The hosted MCP endpoint it talks to, `https://api.usehyperodds.com/mcp`.
 
 Report problems in the console at usehyperodds.com the same way. Issues in Hyperliquid,
@@ -23,3 +24,9 @@ Polymarket, Kalshi or other third parties belong with them.
 
 Fixes go into the latest release. Upgrade with `npx -y @hyperodds/mcp@latest`, or let `npx` pick
 up the new version the next time the client starts it.
+
+An extension installed from a file does not update itself. To upgrade the Claude Desktop
+extension, download `hyperodds.mcpb` from the
+[latest release](https://github.com/usehyperodds/hyperodds-mcp/releases/latest) and open it. The
+[README](https://github.com/usehyperodds/hyperodds-mcp#quick-start) shows how to check the file
+first.

@@ -1,7 +1,7 @@
 {
   "name": "@hyperodds/mcp",
-  "version": "0.1.1",
-  "description": "Stdio bridge to the hosted Hyperodds MCP server: read-only Hyperliquid HIP-4 outcome market data for local MCP clients.",
+  "version": "0.2.0",
+  "description": "Stdio bridge to the hosted Hyperodds MCP server: Hyperliquid HIP-4 outcome market data for local MCP clients, and forecasts signed on your machine for Hyperodds' public record.",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -10,6 +10,7 @@
     "hip-4",
     "outcome-markets",
     "prediction-markets",
+    "forecasting",
     "hyperodds"
   ],
   "homepage": "https://github.com/usehyperodds/hyperodds-mcp#readme",
@@ -40,12 +41,22 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test": "npm run build && node --test test/bridge.test.js test/cli.test.js",
+    "test": "npm run build && node --test test/forecast.test.js test/key.test.js test/bridge.test.js test/cli.test.js test/proxy.test.js test/sdk.test.js test/mcpb.test.js",
+    "mcpb": "npm run build && node scripts/mcpb.mjs",
     "prepack": "npm run build"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "2.1.2",
     "@biomejs/biome": "2.6.2",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "22.20.5",
     "typescript": "7.0.2"
+  },
+  "overrides": {
+    "tmp": "^0.2.7"
+  },
+  "dependencies": {
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   }
 }
