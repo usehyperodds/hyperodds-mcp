@@ -3,7 +3,7 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.1] - 2026-11-23
 
 ### Changed
 
@@ -74,6 +74,7 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
+[0.2.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.0
 [0.1.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.1.0

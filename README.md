@@ -72,7 +72,7 @@ VS Code (`.vscode/mcp.json`):
 ```
 
 `npx -y` runs the newest release each time your client starts. To stay on one version and upgrade
-when you choose, pin it in the entry: `"args": ["-y", "@hyperodds/mcp@0.2.0"]`.
+when you choose, pin it in the entry: `"args": ["-y", "@hyperodds/mcp@0.2.1"]`.
 
 The package needs Node.js 22 or later. A client that connects to remote servers can skip it and
 use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
@@ -206,7 +206,7 @@ error that names it.
 The bridge forwards each message from your client to `api.usehyperodds.com`. That includes the
 arguments of every tool call, such as the text of a search, and the name and version your client
 reports when it connects. Each request also carries a user agent with the bridge and Node.js
-versions, such as `hyperodds-mcp/0.2.0 node/24.22.0`. Requests pass through Cloudflare on their way
+versions, such as `hyperodds-mcp/0.2.1 node/24.22.0`. Requests pass through Cloudflare on their way
 to our hosting provider.
 
 Messages go through unchanged, except for the forecast tools while signing is on. The bridge sends
