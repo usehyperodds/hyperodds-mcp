@@ -3,6 +3,17 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Signing on your machine refuses what the hosted server refuses since version 2 of the forecast
+  record's spec: an `odds_forecast` argument it doesn't take (a misspelt `forecaster`, say), and a
+  key in a forecast other than `outcome` and `probabilityBps`. Each comes back as an
+  `invalid_request` refusal naming what was wrong, before any key is read or made, and nothing is
+  sent. Before, those keys were dropped, so a misspelt `forecaster` signed here what was meant for
+  another wallet.
+
 ## [0.2.0] - 2026-11-22
 
 ### Added

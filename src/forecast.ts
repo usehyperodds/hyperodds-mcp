@@ -125,16 +125,44 @@ export class EntryError extends Error {
   }
 }
 
-/** The forecasts asked for, if they can be signed: 1 to 50, each an outcome id and a probabilityBps. */
+const ENTRY_KEYS: ReadonlySet<string> = new Set(["outcome", "probabilityBps"]);
+
+/**
+ * The forecasts asked for, if they can be signed: 1 to 50, each an outcome id and a probabilityBps
+ * and nothing else. A key the message has no place for is refused, as the server refuses it: an
+ * agent that sent side: 1 would otherwise sign a probability for the other side than it meant.
+ */
 export function checkEntries(entries: unknown): Entry[] {
   if (!Array.isArray(entries) || !entries.every(isEntry))
     throw new EntryError(
       "invalid_request",
       "Each forecast takes an outcome id and a probabilityBps, a whole number from 1 to 9999.",
     );
+  const extra = [...new Set(entries.flatMap((e) => Object.keys(e).filter((k) => !ENTRY_KEYS.has(k))))];
+  if (extra.length > 0)
+    throw new EntryError(
+      "invalid_request",
+      `Each forecast takes only an outcome id and a probabilityBps, not ${extra.join(", ")}.`,
+    );
   if (entries.length < 1 || entries.length > MAX_BATCH)
     throw new EntryError("batch_size", "Send from 1 to 50 forecasts at a time.");
   return entries.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps }));
+}
+
+/** What odds_forecast takes. */
+const FORECAST_ARGS: ReadonlySet<string> = new Set(["signed", "forecasts", "forecaster"]);
+
+/**
+ * Arguments odds_forecast doesn't take, refused as the server refuses them, before any key is read
+ * or made: a misspelt forecaster would otherwise sign here what was meant for another wallet.
+ */
+export function checkArguments(args: Record<string, unknown>): void {
+  const unknown = Object.keys(args).filter((k) => !FORECAST_ARGS.has(k));
+  if (unknown.length > 0)
+    throw new EntryError(
+      "invalid_request",
+      `odds_forecast takes signed, or forecasts with an optional forecaster, not ${unknown.join(", ")}.`,
+    );
 }
 
 /**
