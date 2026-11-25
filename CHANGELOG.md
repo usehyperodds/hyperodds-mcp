@@ -3,6 +3,14 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed
+
+- The extension's manifest and the README list `search` and `fetch`, the two tools the hosted
+  server added for clients that look a market up from the words of a question. The bridge already
+  passed them through; Claude Desktop's install dialog now names all nine tools.
+
 ## [0.2.1] - 2026-11-23
 
 ### Changed

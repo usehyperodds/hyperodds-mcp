@@ -71,6 +71,14 @@
       "description": "The newest HIP-4 listings first, with the same fields as odds_markets."
     },
     {
+      "name": "search",
+      "description": "Up to 20 live markets that match the words of a question, each with an id, a title and its page on Hyperodds."
+    },
+    {
+      "name": "fetch",
+      "description": "One market as text to quote, by an id from search: the book, volume, fair line and sources, edges, rules and the same question on other deployers and venues."
+    },
+    {
       "name": "odds_forecast",
       "description": "Enters forecasts in Hyperodds' public record: a probability for each of up to 50 markets, signed on this computer. Each stays private until its market's cutoff and is scored against Hyperliquid's settlement."
     },
