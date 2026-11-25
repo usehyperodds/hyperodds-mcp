@@ -11,6 +11,7 @@
   <a href="https://github.com/usehyperodds/hyperodds-mcp/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-176646"></a>
   <a href="https://usehyperodds.com"><img alt="Website" src="https://img.shields.io/badge/web-usehyperodds.com-070b0c"></a>
   <a href="https://x.com/UseHyperodds"><img alt="X" src="https://img.shields.io/badge/@UseHyperodds-000000?logo=x&logoColor=white"></a>
+  <a href="https://heyresearch.xyz/project/hyperodds?utm_source=badge&utm_medium=readme"><img alt="Hyperodds on HEY Research Lab" src="https://heyresearch.xyz/api/badge/hyperodds?style=pill" height="20"></a>
 </p>
 
 Give Claude, Cursor, VS Code or any other MCP client live data on Hyperliquid's HIP-4 outcome
