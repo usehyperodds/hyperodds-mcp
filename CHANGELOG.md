@@ -10,6 +10,11 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - The bridge no longer follows redirects. A reply that redirects is an error naming its HTTP
   status, so a redirect can't move a message to plain http or another server, or turn it into a
   GET.
+- The bridge answers requests from the server itself and passes none of them to the client: a
+  `ping` gets an empty answer, and anything else, such as `sampling/createMessage`,
+  `elicitation/create` or `roots/list`, a method-not-found error. It also removes the `roots`,
+  `sampling`, `elicitation` and `tasks` capabilities from the client's `initialize`. Before, a
+  server could ask the client's model for text, the person for input or the client for its folders.
 
 ## [0.2.3] - 2026-11-26
 

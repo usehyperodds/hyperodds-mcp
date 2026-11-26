@@ -220,8 +220,14 @@ reports when it connects. Each request also carries a user agent with the bridge
 versions, such as `hyperodds-mcp/0.2.3 node/24.22.0`. Requests pass through Cloudflare on their way
 to our hosting provider.
 
-Messages go through unchanged, except for the forecast tools while signing is on. The bridge sends
-`odds_forecast` as your forecasts signed by your forecaster key, and fills in your forecaster's
+The bridge passes your client no requests from the server, so a server can't ask your client's
+model to write text (sampling), ask you for input (elicitation) or list your folders (roots). It
+answers a server's `ping` itself, and any other server request with a method-not-found error. To
+match, it removes the `roots`, `sampling`, `elicitation` and `tasks` capabilities from what your
+client reports when it connects, and drops any answer your client sends to a server request.
+
+Other messages go through unchanged, except for the forecast tools while signing is on. The bridge
+sends `odds_forecast` as your forecasts signed by your forecaster key, and fills in your forecaster's
 address when `odds_forecast_record` has none. In the answers, it rewrites both tools' descriptions
 for signing on your machine and makes the second one's `address` optional. After each forecast it
 names your forecaster, and it explains refusals caused by the clock or the signing order. The

@@ -246,19 +246,94 @@ describe("bridge", () => {
 
   test("an event stream is read event by event, up to the answer", async () => {
     const h = harness((body) =>
-      stream(
-        'event: message\r\ndata: {"jsonrpc":"2.0","method":"notifications/message","params":{}}\r\n\r\n' +
-          `data: {"jsonrpc":"2.0","id":${body.id},"method":"elicitation/create","params":{}}\r\n\r\n` +
-          `data: {"jsonrpc":"2.0","id":${body.id},\r\ndata: "result":{}}\r\n\r\n` +
-          "data: not json\r\n\r\n",
-        23,
-      ),
+      body.method === "tools/list"
+        ? stream(
+            'event: message\r\ndata: {"jsonrpc":"2.0","method":"notifications/message","params":{}}\r\n\r\n' +
+              `data: {"jsonrpc":"2.0","id":${body.id},"method":"elicitation/create","params":{}}\r\n\r\n` +
+              `data: {"jsonrpc":"2.0","id":${body.id},\r\ndata: "result":{}}\r\n\r\n` +
+              "data: not json\r\n\r\n",
+            23,
+          )
+        : accepted(),
     );
     await h.send({ jsonrpc: "2.0", id: 9, method: "tools/list" });
     assert.deepEqual(h.out, [
       { jsonrpc: "2.0", method: "notifications/message", params: {} },
-      { jsonrpc: "2.0", id: 9, method: "elicitation/create", params: {} },
       { jsonrpc: "2.0", id: 9, result: {} },
+    ]);
+    assert.equal(h.sent[1].body.error.code, -32601);
+  });
+
+  test("answers the server's requests itself, and passes none of them to the client", async () => {
+    const asks = [
+      { method: "sampling/createMessage", params: { messages: [], maxTokens: 100 } },
+      { method: "roots/list" },
+      { method: "elicitation/create", params: { message: "Paste your key", requestedSchema: {} } },
+      { method: "tasks/list" },
+      { method: "ping" },
+    ];
+    const h = harness((body) => {
+      if (body.method !== "tools/list") return accepted();
+      const events = asks.map((a, i) => `data: ${JSON.stringify({ jsonrpc: "2.0", id: `s${i}`, ...a })}\n\n`);
+      return stream(
+        `${events.join("")}data: ${JSON.stringify({ jsonrpc: "2.0", id: body.id, result: {} })}\n\n`,
+      );
+    });
+    await h.send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    assert.deepEqual(h.out, [{ jsonrpc: "2.0", id: 1, result: {} }]);
+    const answers = Object.fromEntries(h.sent.slice(1).map((s) => [s.body.id, s.body]));
+    for (const [i, { method }] of asks.entries()) {
+      const answer = answers[`s${i}`];
+      if (method === "ping") assert.deepEqual(answer, { jsonrpc: "2.0", id: `s${i}`, result: {} });
+      else
+        assert.deepEqual(answer.error, {
+          code: -32601,
+          message: `The bridge passes no server requests to the client, so "${method}" is not available.`,
+        });
+    }
+    assert.equal(h.sent.length, 1 + asks.length);
+    assert.equal(h.logs.length, asks.length - 1);
+    assert.match(
+      h.logs[0],
+      /^Hyperodds sent a "sampling\/createMessage" request; the bridge passes no server/,
+    );
+
+    // In a JSON answer too.
+    const j = harness((body) =>
+      body.method === "tools/list" ? json({ jsonrpc: "2.0", id: "s", method: "roots/list" }) : accepted(),
+    );
+    await j.send({ jsonrpc: "2.0", id: 2, method: "tools/list" });
+    assert.equal(j.sent[1].body.error.code, -32601);
+    assert.equal(j.out.length, 1);
+    assert.equal(j.out[0].error.code, -32603);
+
+    // A server that answers the bridge's answer with another request gets no answer to that one.
+    const loop = harness(() => json({ jsonrpc: "2.0", id: "s", method: "roots/list" }));
+    await loop.send({ jsonrpc: "2.0", id: 3, method: "tools/list" });
+    assert.equal(loop.sent.length, 2);
+  });
+
+  test("tells the server the client takes no requests from it, and drops answers the client sends", async () => {
+    const h = harness((body) =>
+      body.id === undefined ? accepted() : json({ jsonrpc: "2.0", id: body.id, result: {} }),
+    );
+    const capabilities = {
+      roots: { listChanged: true },
+      sampling: {},
+      elicitation: { form: {}, url: {} },
+      tasks: { requests: { sampling: { createMessage: {} } } },
+      experimental: { trace: {} },
+    };
+    await h.send({ ...initialize, params: { ...initialize.params, capabilities } });
+    assert.deepEqual(h.sent[0].body.params, {
+      ...initialize.params,
+      capabilities: { experimental: { trace: {} } },
+    });
+
+    await h.send({ jsonrpc: "2.0", id: "s1", result: { roots: [{ uri: "file:///home" }] } });
+    assert.equal(h.sent.length, 1);
+    assert.deepEqual(h.logs, [
+      "The client sent an answer to a request it never received; the bridge dropped it.",
     ]);
   });
 
