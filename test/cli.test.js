@@ -316,6 +316,30 @@ describe("hyperodds-mcp", () => {
       assert.equal((await run("", { HYPERODDS_MCP_URL: server })).code, 0, server);
   });
 
+  test("never follows a redirect, so a POST cannot move to another server", async (t) => {
+    let reached = 0;
+    const elsewhere = createServer((_, res) => {
+      reached++;
+      res.writeHead(200, { "content-type": "application/json" }).end("{}");
+    });
+    await new Promise((r) => elsewhere.listen(0, "127.0.0.1", r));
+    const moved = createServer((_, res) =>
+      res.writeHead(307, { location: `http://127.0.0.1:${elsewhere.address().port}/mcp` }).end(),
+    );
+    await new Promise((r) => moved.listen(0, "127.0.0.1", r));
+    t.after(() => {
+      elsewhere.close();
+      moved.close();
+    });
+    const { answer, stderr } = await ask(
+      { jsonrpc: "2.0", id: 1, method: "tools/list" },
+      { ...noProxy, HYPERODDS_MCP_URL: `http://127.0.0.1:${moved.address().port}/mcp` },
+    );
+    assert.match(answer.error.message, /replied HTTP 307, a redirect, which the bridge does not follow\.$/);
+    assert.match(stderr, /a redirect, which the bridge does not follow/);
+    assert.equal(reached, 0);
+  });
+
   test("refuses a server URL with a username or password, and never repeats a secret", async () => {
     const login = await run("", { HYPERODDS_MCP_URL: "https://user:s3cret@example.com/mcp" });
     assert.equal(login.code, 2);

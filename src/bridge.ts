@@ -299,8 +299,17 @@ export class Bridge {
       method: "POST",
       headers: this.headers(),
       body: JSON.stringify(msg),
+      // Followed, a redirect could send the message on over plain http or to another host, or turn
+      // the POST into a GET.
+      redirect: "manual",
       signal,
     });
+    if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+      await res.body?.cancel();
+      throw new Failure(
+        `${this.opts.label} replied HTTP ${res.status}, a redirect, which the bridge does not follow.`,
+      );
+    }
     onHeaders?.(res.headers);
     const type = res.headers.get("content-type") ?? "";
     let taken: Message | null | undefined;

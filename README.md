@@ -111,7 +111,8 @@ Your client receives each tool's input and output schema when it connects. The
 </picture>
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
-For a forecast, the bridge uses your forecaster key to sign the forecasts your agent asked for, and
+The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
+plain http or another server. For a forecast, the bridge uses your forecaster key to sign the forecasts your agent asked for, and
 sends them in that same request. It never signs anything a server sends it. Beyond the protocol
 version agreed when the client connects, the bridge keeps only your forecaster key and the time it
 last signed on each market. Requests run side by side. If one fails or gets no answer within 30

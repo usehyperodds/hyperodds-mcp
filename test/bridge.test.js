@@ -53,7 +53,7 @@ function harness(handle, timeoutMs, label = "Hyperodds", more = {}) {
     // Like fetch, it gives up as soon as the signal aborts, whatever the server is doing.
     fetch: async (url, init) => {
       const body = JSON.parse(init.body);
-      sent.push({ url, headers: init.headers, body });
+      sent.push({ url, headers: init.headers, body, redirect: init.redirect });
       return new Promise((done, fail) => {
         if (init.signal.aborted) return fail(init.signal.reason);
         init.signal.addEventListener("abort", () => fail(init.signal.reason), { once: true });
@@ -202,6 +202,28 @@ describe("bridge", () => {
       slow: `Hyperodds did not answer within 0.05 seconds. ${note}`,
       edge: "Hyperodds replied HTTP 502 with no JSON-RPC response.",
     });
+  });
+
+  test("a redirect is an error on the request it answers, and is never followed", async () => {
+    for (const status of [301, 302, 303, 307, 308]) {
+      const h = harness(
+        () => new Response(null, { status, headers: { location: "http://mcp.test/elsewhere" } }),
+      );
+      await h.send(
+        { jsonrpc: "2.0", id: 1, method: "tools/list" },
+        { jsonrpc: "2.0", method: "notifications/initialized" },
+      );
+      const why = `Hyperodds replied HTTP ${status}, a redirect, which the bridge does not follow.`;
+      assert.deepEqual(h.out, [{ jsonrpc: "2.0", id: 1, error: { code: -32603, message: why } }]);
+      assert.deepEqual(h.logs, [why, why]);
+      assert.deepEqual(
+        h.sent.map((s) => [s.url, s.redirect]),
+        [
+          ["https://mcp.test/mcp", "manual"],
+          ["https://mcp.test/mcp", "manual"],
+        ],
+      );
+    }
   });
 
   test("closing drops what is still out, without an answer", async () => {

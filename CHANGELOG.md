@@ -5,6 +5,12 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- The bridge no longer follows redirects. A reply that redirects is an error naming its HTTP
+  status, so a redirect can't move a message to plain http or another server, or turn it into a
+  GET.
+
 ## [0.2.3] - 2026-11-26
 
 ### Changed
