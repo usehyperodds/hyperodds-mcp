@@ -31,6 +31,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   and SECURITY.md now say plainly what removing `HYPERODDS_FORECAST_KEY` from the bridge's
   environment does not do: the key stays in the client's config and in the environment the
   operating system recorded when the bridge started.
+- SECURITY.md explains the zod advisory `npm audit` reports: it affects only tools used to build
+  and test, never the published package or the extension.
 
 ### Added
 

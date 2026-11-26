@@ -61,6 +61,16 @@ system keeps the environment the bridge started with, which processes running as
 and administrators, can read (on Linux, `/proc/<pid>/environ`). The extension passes its
 **Forecaster key** setting this way. Setting both variables is refused at startup.
 
+## Dependency advisories
+
+`npm audit` reports [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5),
+memory exhaustion in zod before 4.6.6, for the zod 3.25.76 in this repository's lockfile. Only
+development tools bring it in: `@anthropic-ai/mcpb`, which packs the Claude Desktop extension at
+build time and requires zod 3, and `@modelcontextprotocol/sdk`, which the tests use. The published
+package depends only on `@noble/curves` and `@noble/hashes`, and the extension carries only the
+bridge and those two libraries, so zod never runs when you use either. No zod 3 release has the
+fix. The lockfile moves to one once `@anthropic-ai/mcpb` accepts it.
+
 ## Supported versions
 
 Fixes go into the latest release. The client entries in the README pin a version, so to upgrade,
