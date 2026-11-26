@@ -378,6 +378,44 @@ try {
     assert.deepEqual(readdirSync(elsewhere), []);
   });
 
+  test("from HYPERODDS_FORECAST_KEY_FILE is checked like the key it makes, and never made", {
+    skip: process.platform === "win32",
+  }, () => {
+    const path = freshPath();
+    const file = join(dirname(dirname(path)), "keys", "mine.key");
+    const source = { file, path, log: assert.fail };
+    const missing = new RegExp(
+      `^${file}, the file HYPERODDS_FORECAST_KEY_FILE names, does not exist, so the bridge won't sign\\.`,
+    );
+    for (const create of [false, true]) assert.throws(() => openKey(source, create), { message: missing });
+    assert.equal(existsSync(path), false);
+    assert.equal(existsSync(file), false);
+
+    mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+    writeFileSync(file, `${TEST_KEY}\n`, { mode: 0o600 });
+    assert.equal(openKey(source, true).address, TEST_ADDRESS);
+    assert.equal(existsSync(path), false);
+
+    chmodSync(file, 0o640);
+    assert.throws(() => openKey(source, false), {
+      message: /^Other users of this computer can read or change .+mine\.key/,
+    });
+    chmodSync(file, 0o600);
+    const linked = `${file}.link`;
+    symlinkSync(file, linked);
+    assert.throws(() => openKey({ ...source, file: linked }, false), {
+      message:
+        /mine\.key\.link is a link, not the forecaster key itself, so the bridge won't use it\. Set HYPERODDS_FORECAST_KEY_FILE to the key's real path instead\.$/,
+    });
+    writeFileSync(file, "not a key");
+    assert.throws(() => openKey(source, false), {
+      message:
+        /mine\.key does not hold a forecaster key\. A key file holds 64 hex digits, with or without 0x\.$/,
+    });
+    // The environment wins over the file.
+    assert.equal(openKey({ ...source, env: TEST_KEY }, false).address, TEST_ADDRESS);
+  });
+
   test("from HYPERODDS_FORECAST_KEY is read once and leaves the environment", () => {
     const env = { HYPERODDS_FORECAST_KEY: TEST_KEY, PATH: "/bin" };
     assert.equal(takeKey(env), TEST_KEY);

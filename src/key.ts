@@ -1,6 +1,7 @@
 /**
- * This computer's forecaster key: HYPERODDS_FORECAST_KEY when set, else a file in the user's config
- * directory, made on the first forecast. The key goes nowhere but that file and the signatures.
+ * This computer's forecaster key: HYPERODDS_FORECAST_KEY when set, else the file
+ * HYPERODDS_FORECAST_KEY_FILE names, else a file in the user's config directory, made on the first
+ * forecast. The key goes nowhere but that file and the signatures.
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -34,6 +35,9 @@ export interface Signer {
 export interface KeySource {
   /** HYPERODDS_FORECAST_KEY; empty counts as unset. */
   env?: string;
+  /** HYPERODDS_FORECAST_KEY_FILE: a key file of the person's own, checked like `path` but never made. */
+  file?: string;
+  /** Where the bridge keeps the key it makes. The forecast times live beside it, whatever the key. */
   path: string;
   log: (line: string) => void;
 }
@@ -58,29 +62,54 @@ export const errno = (error: unknown) => (error as NodeJS.ErrnoException)?.code 
 // Windows has no owner and mode bits to check; the key relies on the permissions of %APPDATA%.
 const posix = process.platform !== "win32";
 
+/** How to fix each refusal: for the key the bridge makes, and for one HYPERODDS_FORECAST_KEY_FILE names. */
+const MADE = {
+  configLink: "Set XDG_CONFIG_HOME to a folder of your own that is not a link.",
+  folderLink:
+    "Move the folder it points to into its place, or move the link aside to make a new key on the next forecast.",
+  folderOwner: "Set XDG_CONFIG_HOME to a folder of your own.",
+  fileLink: "Put the key file there, or move the link aside to make a new key on the next forecast.",
+  notFile: "Move it aside to make a new key on the next forecast.",
+  fileOwner: "Move it aside, and the next forecast makes a key of your own.",
+  hardLink: "Replace it with a copy of its own, or move it aside to make a new key on the next forecast.",
+  notKey: "Move it aside to make a new one on the next forecast.",
+};
+const REAL_PATH = "Set HYPERODDS_FORECAST_KEY_FILE to the key's real path instead.";
+const NAMED: typeof MADE = {
+  configLink: REAL_PATH,
+  folderLink: REAL_PATH,
+  folderOwner: "Keep the key in a folder of your own.",
+  fileLink: REAL_PATH,
+  notFile: "Set HYPERODDS_FORECAST_KEY_FILE to the key file itself.",
+  fileOwner: "Use a key file of your own.",
+  hardLink: "Replace it with a copy of its own.",
+  notKey: "A key file holds 64 hex digits, with or without 0x.",
+};
+type Fixes = typeof MADE;
+
 /** Whoever can change a link on the way to the key could choose the key the bridge signs with. */
-function checkLinks(dir: string): void {
+function checkLinks(dir: string, fix: Fixes = MADE): void {
   if (!posix) return;
   // Nothing above the config folder: links there are often the system's, like /var on macOS.
   const base = dirname(dir);
   if (lstatSync(base, { throwIfNoEntry: false })?.isSymbolicLink())
     throw new Error(
-      `${base}, which holds the forecaster key's folder, is a link, so the bridge won't use it. Set XDG_CONFIG_HOME to a folder of your own that is not a link.`,
+      `${base}, which holds the forecaster key's folder, is a link, so the bridge won't use it. ${fix.configLink}`,
     );
   if (lstatSync(dir, { throwIfNoEntry: false })?.isSymbolicLink())
     throw new Error(
-      `${dir}, the folder that holds the forecaster key, is a link, so the bridge won't use it. Move the folder it points to into its place, or move the link aside to make a new key on the next forecast.`,
+      `${dir}, the folder that holds the forecaster key, is a link, so the bridge won't use it. ${fix.folderLink}`,
     );
 }
 
 /** Anyone who owns or can write to the key's folder could put a key of their own in its place. */
-function checkFolder(dir: string): void {
+function checkFolder(dir: string, fix: Fixes = MADE): void {
   if (!posix) return;
-  checkLinks(dir);
+  checkLinks(dir, fix);
   const stat = statSync(dir);
   if (stat.uid !== process.getuid?.())
     throw new Error(
-      `${dir}, the folder that holds the forecaster key, belongs to another user of this computer, so the bridge won't use it. Set XDG_CONFIG_HOME to a folder of your own.`,
+      `${dir}, the folder that holds the forecaster key, belongs to another user of this computer, so the bridge won't use it. ${fix.folderOwner}`,
     );
   if ((stat.mode & 0o022) !== 0)
     throw new Error(
@@ -117,16 +146,13 @@ function saving(dir: string, ino: number): boolean {
 }
 
 /** Checked on the open file, so the file checked is the file read. */
-function checkFile(path: string, fd: number): void {
+function checkFile(path: string, fd: number, fix: Fixes): void {
   if (!posix) return;
   const stat = fstatSync(fd);
-  if (!stat.isFile())
-    throw new Error(
-      `${path} is not a file, so the bridge won't use it. Move it aside to make a new key on the next forecast.`,
-    );
+  if (!stat.isFile()) throw new Error(`${path} is not a file, so the bridge won't use it. ${fix.notFile}`);
   if (stat.uid !== process.getuid?.())
     throw new Error(
-      `The forecaster key at ${path} belongs to another user of this computer, so the bridge won't sign with it. Move it aside, and the next forecast makes a key of your own.`,
+      `The forecaster key at ${path} belongs to another user of this computer, so the bridge won't sign with it. ${fix.fileOwner}`,
     );
   if ((stat.mode & 0o066) !== 0)
     throw new Error(
@@ -138,7 +164,7 @@ function checkFile(path: string, fd: number): void {
   for (let tries = 0; tries < 200 && saving(dirname(path), stat.ino); tries++) Atomics.wait(nap, 0, 0, 5);
   if (fstatSync(fd).nlink > 1)
     throw new Error(
-      `${path} is a hard link: the forecaster key in it also lives under another name on this computer, so the bridge won't sign with it. Replace it with a copy of its own, or move it aside to make a new key on the next forecast.`,
+      `${path} is a hard link: the forecaster key in it also lives under another name on this computer, so the bridge won't sign with it. ${fix.hardLink}`,
     );
 }
 
@@ -160,7 +186,7 @@ function signer(key: Uint8Array): Signer {
   };
 }
 
-function read(path: string): Signer | null {
+function read(path: string, fix: Fixes = MADE): Signer | null {
   let fd: number;
   try {
     fd = openSync(path, READ);
@@ -169,19 +195,16 @@ function read(path: string): Signer | null {
     // FreeBSD answers a link with EMLINK.
     if (errno(error) === "ELOOP" || errno(error) === "EMLINK")
       throw new Error(
-        `${path} is a link, not the forecaster key itself, so the bridge won't use it. Put the key file there, or move the link aside to make a new key on the next forecast.`,
+        `${path} is a link, not the forecaster key itself, so the bridge won't use it. ${fix.fileLink}`,
       );
     throw new Error(`Could not read the forecaster key at ${path} (${errno(error)}).`);
   }
   try {
-    checkFile(path, fd);
-    checkFolder(dirname(path));
+    checkFile(path, fd, fix);
+    checkFolder(dirname(path), fix);
     // A key file is 67 bytes; don't read a large file whole to find that out.
     const key = fstatSync(fd).size <= 1024 ? parse(readFileSync(fd, "utf8")) : null;
-    if (!key)
-      throw new Error(
-        `${path} does not hold a forecaster key. Move it aside to make a new one on the next forecast.`,
-      );
+    if (!key) throw new Error(`${path} does not hold a forecaster key. ${fix.notKey}`);
     return signer(key);
   } finally {
     closeSync(fd);
@@ -189,9 +212,9 @@ function read(path: string): Signer | null {
 }
 
 /**
- * The key, read from the environment or the file; with `create`, made and saved first if there is
- * none. Null when there is none and `create` is off. Errors name the variable or the file, never
- * what is in them.
+ * The key, read from the environment or a file; with `create`, made and saved first if there is
+ * none and no file is named. Null when there is none and `create` is off. Errors name the variable
+ * or the file, never what is in them.
  */
 export function openKey(source: KeySource, create: boolean): Signer | null {
   if (source.env) {
@@ -201,6 +224,13 @@ export function openKey(source: KeySource, create: boolean): Signer | null {
         "HYPERODDS_FORECAST_KEY is not a private key: it takes 64 hex digits, with or without 0x.",
       );
     return signer(key);
+  }
+  if (source.file) {
+    const named = read(source.file, NAMED);
+    if (named) return named;
+    throw new Error(
+      `${source.file}, the file HYPERODDS_FORECAST_KEY_FILE names, does not exist, so the bridge won't sign. Put the forecaster key there, or unset the variable to use the key the bridge makes.`,
+    );
   }
   const { path } = source;
   const found = read(path);

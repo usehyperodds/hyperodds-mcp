@@ -50,7 +50,7 @@ Cursor (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) or Windsurf:
   "mcpServers": {
     "hyperodds": {
       "command": "npx",
-      "args": ["-y", "@hyperodds/mcp"]
+      "args": ["-y", "@hyperodds/mcp@0.2.3"]
     }
   }
 }
@@ -59,7 +59,7 @@ Cursor (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) or Windsurf:
 Claude Code:
 
 ```sh
-claude mcp add hyperodds -- npx -y @hyperodds/mcp
+claude mcp add hyperodds -- npx -y @hyperodds/mcp@0.2.3
 ```
 
 VS Code (`.vscode/mcp.json`):
@@ -67,13 +67,15 @@ VS Code (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
-    "hyperodds": { "type": "stdio", "command": "npx", "args": ["-y", "@hyperodds/mcp"] }
+    "hyperodds": { "type": "stdio", "command": "npx", "args": ["-y", "@hyperodds/mcp@0.2.3"] }
   }
 }
 ```
 
-`npx -y` runs the newest release each time your client starts. To stay on one version and upgrade
-when you choose, pin it in the entry: `"args": ["-y", "@hyperodds/mcp@0.2.3"]`.
+Each entry runs the release it names until you change the version in it; the
+[changelog](https://github.com/usehyperodds/hyperodds-mcp/blob/main/CHANGELOG.md) lists what each
+release changes. You can write `@hyperodds/mcp@latest` instead, and npx then looks up the newest
+release each time your client starts the bridge.
 
 The package needs Node.js 22 or later. A client that connects to remote servers can skip it and
 use `https://api.usehyperodds.com/mcp` directly over Streamable HTTP.
@@ -146,11 +148,12 @@ score, the squared distance between the forecast and the result, where lower is 
 [usehyperodds.com/forecasts](https://usehyperodds.com/forecasts) ranks forecasters by how much they
 beat the fair line.
 
-Entries close an hour before each market's cutoff, and one call takes up to 50 markets whose
-cutoffs fall on the same UTC day. If you forecast a market again, the forecast signed latest is the
-one scored; earlier ones stay in the record. The bridge signs each forecast at least a second after
-its last one on the same market, so a quick revision still counts. It keeps those times in
-`forecast-times.json`, beside the key. There are no prizes or payouts.
+Entries close an hour before each market's cutoff, and one call takes up to 50 markets whose cutoffs
+fall on the same UTC day. If you forecast a market again, the forecast signed latest is the one
+scored; earlier ones stay in the record. The bridge signs each forecast at least a second after its
+last one on the same market, so a quick revision still counts. It keeps those times in
+`forecast-times.json`, in the folder of the key it makes, whichever key it signs with. There are no
+prizes or payouts.
 
 ### Your forecaster key
 
@@ -170,10 +173,9 @@ On macOS and Linux, the bridge won't use the key, and says how to fix it, when:
 - the file has more than one hard link, so the key also lives under another name;
 - another user owns the `hyperodds` folder, or other users can write to it.
 
-It won't make a new key in such a folder either, or read or save `forecast-times.json` there, with
-a key from `HYPERODDS_FORECAST_KEY` too. On Windows, the bridge makes none of these checks, and the
-file relies on the permissions of your `%APPDATA%` folder, which the computer's administrators can
-read.
+It won't make a new key in such a folder either, or read or save `forecast-times.json` there,
+whichever key it signs with. On Windows, the bridge makes none of these checks, and the file relies
+on the permissions of your `%APPDATA%` folder, which the computer's administrators can read.
 
 In the errors your client and its model see, your home folder appears as `~`, or as `$HOME` in a
 command to run. Only the client's server log, where the bridge writes its diagnostics, has the
@@ -185,10 +187,17 @@ record only when `HYPERODDS_SITE_URL` names the site that publishes it. Hyperodd
 address and the signed forecasts, never the key.
 - **Back it up.** Copy the file somewhere safe. Whoever holds it can forecast under your address,
   and without it no one can add to that record.
-- **Use it on another machine.** Copy the file to the same place there, or set
-  `HYPERODDS_FORECAST_KEY` to its contents; the bridge reads the variable once at startup and
-  removes it from its environment. In Claude Desktop, paste the contents into the extension's
-  **Forecaster key** setting.
+- **Use it on another machine.** Copy the file to the same place there, or anywhere you keep
+  such files, and set `HYPERODDS_FORECAST_KEY_FILE` to its absolute path. The bridge runs the
+  checks above on that file, its folder and the folder above that, reads the key from it for each
+  forecast, and never makes a key there. In Claude Desktop, paste the file's contents into the
+  extension's **Forecaster key** setting.
+- **Or pass the key itself.** Set `HYPERODDS_FORECAST_KEY` to the file's contents. The bridge
+  reads the variable once at startup and removes it from its own environment, but the key is not
+  gone: it stays in your client's config file, and the operating system keeps the environment the
+  bridge started with, which programs running as your user can read (on Linux, in
+  `/proc/<pid>/environ`). The extension's **Forecaster key** setting reaches the bridge this way
+  too. `HYPERODDS_FORECAST_KEY_FILE` keeps the key out of both.
 - **Start over.** Move or delete the file. The next forecast makes a new key, and with it a new
   forecaster. The old record stays public under the old address.
 
@@ -244,12 +253,12 @@ match, it removes the `roots`, `sampling`, `elicitation` and `tasks` capabilitie
 client reports when it connects, and drops any answer your client sends to a server request.
 
 Other messages go through unchanged, except for the forecast tools while signing is on. The bridge
-sends `odds_forecast` as your forecasts signed by your forecaster key, and fills in your forecaster's
-address when `odds_forecast_record` has none. In the answers, it rewrites both tools' descriptions
-for signing on your machine and makes the second one's `address` optional. After each forecast it
-names your forecaster, and it explains refusals caused by the clock or the signing order. The
-forecaster key never leaves your machine. Each forecast is private until its market's cutoff, then
-public with the address that signed it.
+sends `odds_forecast` as your forecasts signed by your forecaster key, and fills in your
+forecaster's address when `odds_forecast_record` has none. In the answers, it rewrites both tools'
+descriptions for signing on your machine and makes the second one's `address` optional. After each
+forecast it names your forecaster, and it explains refusals caused by the clock or the signing
+order. The forecaster key never leaves your machine. Each forecast is private until its market's
+cutoff, then public with the address that signed it.
 
 The server counts tool calls per IP address for the daily allowance. It never stores the address
 itself, only a hash made with a key that changes every day, and it deletes each day's key the next
@@ -260,18 +269,19 @@ day. The [privacy policy](https://usehyperodds.com/privacy) covers the rest.
 The bridge reads its settings from the environment. In an entry you add by hand, set them in
 `env`:
 
-| Variable                     | Default                                                    | Purpose                                                                           |
-| ---------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp`                         | The server to forward to: https, or plain http only on this computer              |
-| `HYPERODDS_FORECAST_KEY`     | The key file                                               | A private key made for forecasts, 64 hex digits                                   |
-| `HYPERODDS_FORECAST_SIGNING` | `on`                                                       | `off` sends forecasts unsigned, for a sign link to a wallet                       |
-| `HYPERODDS_FORECAST_LIMIT`   | `200`                                                      | The most forecasts the bridge signs in a session, from start to exit              |
-| `HYPERODDS_SITE_URL`         | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |
+| Variable                      | Default                                                    | Purpose                                                                           |
+| ----------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `HYPERODDS_MCP_URL`           | `https://api.usehyperodds.com/mcp`                         | The server to forward to: https, or plain http only on this computer              |
+| `HYPERODDS_FORECAST_KEY`      | The key file                                               | A private key made for forecasts, 64 hex digits                                   |
+| `HYPERODDS_FORECAST_KEY_FILE` | None                                                       | The absolute path of a file that holds that key, read in place of the key file    |
+| `HYPERODDS_FORECAST_SIGNING`  | `on`                                                       | `off` sends forecasts unsigned, for a sign link to a wallet                       |
+| `HYPERODDS_FORECAST_LIMIT`    | `200`                                                      | The most forecasts the bridge signs in a session, from start to exit              |
+| `HYPERODDS_SITE_URL`          | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |
 
 ```json
 {
   "command": "npx",
-  "args": ["-y", "@hyperodds/mcp"],
+  "args": ["-y", "@hyperodds/mcp@0.2.3"],
   "env": { "HYPERODDS_FORECAST_SIGNING": "off" }
 }
 ```
@@ -293,7 +303,7 @@ proxy you trust, or remove the token from your npm config.
 The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
 `HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
 
-`npx -y @hyperodds/mcp --help` and `--version` print the usage and the version.
+`npx -y @hyperodds/mcp@0.2.3 --help` and `--version` print the usage and the version.
 
 ## Development
 

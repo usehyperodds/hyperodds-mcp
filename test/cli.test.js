@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -330,6 +330,40 @@ describe("hyperodds-mcp", () => {
         assert.match(r.stderr, /^hyperodds-mcp: HYPERODDS_SITE_URL /, bad);
         assert.ok(!r.stderr.includes(bad), bad);
       }
+    });
+
+    test("are signed with the key in HYPERODDS_FORECAST_KEY_FILE, which must be an absolute path", async (t) => {
+      const server = standIn();
+      const { url, close } = await serve(server);
+      t.after(close);
+      const home = mkdtempSync(join(config, "keyfile-"));
+      const file = join(home, "mine.key");
+      writeFileSync(file, `0x${"0".repeat(63)}1\n`, { mode: 0o600 });
+      const r = await session(
+        { HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: home, HYPERODDS_FORECAST_KEY_FILE: file },
+        [forecast(1, { forecasts })],
+        1,
+      );
+      assert.equal(
+        r.answers[1].result.structuredContent.forecaster,
+        "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf",
+      );
+      assert.equal(existsSync(join(home, "hyperodds", "forecaster.key")), false);
+      assert.equal(r.stderr, "");
+
+      const relative = await run("", { HYPERODDS_FORECAST_KEY_FILE: "mine.key" });
+      assert.equal(relative.code, 2);
+      assert.equal(
+        relative.stderr,
+        "hyperodds-mcp: HYPERODDS_FORECAST_KEY_FILE must be an absolute path. Run with --help for usage.\n",
+      );
+      const both = await run("", {
+        HYPERODDS_FORECAST_KEY_FILE: file,
+        HYPERODDS_FORECAST_KEY: `0x${"0".repeat(63)}1`,
+      });
+      assert.equal(both.code, 2);
+      assert.match(both.stderr, /Set HYPERODDS_FORECAST_KEY or HYPERODDS_FORECAST_KEY_FILE, not both\./);
+      assert.ok(!both.stderr.includes("0".repeat(63)));
     });
 
     test("stop at HYPERODDS_FORECAST_LIMIT in a session", async (t) => {

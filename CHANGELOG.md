@@ -27,9 +27,17 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   stops the bridge.
 - Errors the client sees write your home folder as `~`, or `$HOME` inside a command to run, so
   the model never sees your user name. The server log keeps the full path.
+- The README's client entries pin the release, and say how to follow `@latest` instead. The README
+  and SECURITY.md now say plainly what removing `HYPERODDS_FORECAST_KEY` from the bridge's
+  environment does not do: the key stays in the client's config and in the environment the
+  operating system recorded when the bridge started.
 
 ### Added
 
+- `HYPERODDS_FORECAST_KEY_FILE` names a key file of your own by its absolute path, so the key
+  needn't pass through the environment. The bridge checks that file and its folders as it checks
+  the key it makes, and never makes a key there. Setting it together with
+  `HYPERODDS_FORECAST_KEY`, or as a relative path, is refused at startup.
 - When the client supports MCP elicitation forms, the bridge asks the person to confirm each
   `odds_forecast` call before it signs, showing the outcome ids, probabilities and forecaster.
   Nothing is entered without an accept. Other clients work as before.

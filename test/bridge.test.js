@@ -503,6 +503,18 @@ describe("forecasts signed on this computer", () => {
     assert.deepEqual(h.logs, []);
   });
 
+  test("uses the key file HYPERODDS_FORECAST_KEY_FILE names, and keeps the times in its own folder", async () => {
+    const file = join(work, `named-${homes}.key`);
+    writeFileSync(file, `${TEST_KEY}\n`, { mode: 0o600 });
+    const h = signing({}, { file });
+    await h.call(1, "odds_forecast", { forecasts: ten.slice(0, 2) });
+    assert.equal(h.out[0].result.structuredContent.forecaster, TEST_ADDRESS);
+    assert.deepEqual(readdirSync(dirname(h.path)), ["forecast-times.json"]);
+    assert.ok(!JSON.stringify([h.out, h.logs, h.sent]).includes(TEST_KEY.slice(2)));
+    await h.call(2, "odds_forecast_record", {});
+    assert.equal(h.sent.at(-1).body.params.arguments.address, TEST_ADDRESS);
+  });
+
   test("links the record only on the configured site, never on one the server names", async () => {
     const unknown = signing({ web: "https://phish.example" });
     await unknown.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });

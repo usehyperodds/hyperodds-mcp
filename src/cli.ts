@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
+import { isAbsolute } from "node:path";
 import { Bridge, FORECAST_LIMIT } from "./bridge.js";
 import { keyPath, takeKey } from "./key.js";
 import { proxyNote } from "./proxy.js";
@@ -22,6 +23,7 @@ Environment:
                               (default ${DEFAULT_URL})
   HYPERODDS_FORECAST_KEY      private key made for forecasts, 64 hex digits (default: the key
                               made on the first forecast, kept in ${keyPath()})
+  HYPERODDS_FORECAST_KEY_FILE absolute path of a file that holds that key, instead
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
   HYPERODDS_FORECAST_LIMIT    most forecasts signed in a session, from start to exit
                               (default ${FORECAST_LIMIT})
@@ -79,6 +81,9 @@ if (siteSetting) {
 } else if (target.hostname === "api.usehyperodds.com") site = "https://usehyperodds.com";
 
 const envKey = takeKey();
+const keyFile = process.env.HYPERODDS_FORECAST_KEY_FILE || undefined;
+if (keyFile && !isAbsolute(keyFile)) fail("HYPERODDS_FORECAST_KEY_FILE must be an absolute path.");
+if (keyFile && envKey) fail("Set HYPERODDS_FORECAST_KEY or HYPERODDS_FORECAST_KEY_FILE, not both.");
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))
   fail("HYPERODDS_FORECAST_SIGNING must be on or off.");
@@ -101,7 +106,7 @@ const bridge = new Bridge({
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
-  keys: signs ? { env: envKey, path: keyPath(), log } : undefined,
+  keys: signs ? { env: envKey, file: keyFile, path: keyPath(), log } : undefined,
   siteUrl: site,
   forecastLimit: Number(limitSetting),
 });
