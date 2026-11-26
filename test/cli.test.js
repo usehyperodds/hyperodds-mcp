@@ -262,6 +262,16 @@ describe("hyperodds-mcp", () => {
     );
     for (const value of ["on", "OFF", "true", "false"])
       assert.equal((await run("", { HYPERODDS_FORECAST_SIGNING: value })).code, 0, value);
+    for (const value of ["0", "-1", "2.5", "ten", "1000000"]) {
+      const r = await run("", { HYPERODDS_FORECAST_LIMIT: value });
+      assert.equal(r.code, 2, value);
+      assert.equal(
+        r.stderr,
+        "hyperodds-mcp: HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999. Run with --help for usage.\n",
+      );
+    }
+    for (const value of ["", "1", " 500 "])
+      assert.equal((await run("", { HYPERODDS_FORECAST_LIMIT: value })).code, 0, value);
   });
 
   describe("forecasts", () => {
@@ -320,6 +330,24 @@ describe("hyperodds-mcp", () => {
         assert.match(r.stderr, /^hyperodds-mcp: HYPERODDS_SITE_URL /, bad);
         assert.ok(!r.stderr.includes(bad), bad);
       }
+    });
+
+    test("stop at HYPERODDS_FORECAST_LIMIT in a session", async (t) => {
+      const server = standIn();
+      const { url, close } = await serve(server);
+      t.after(close);
+      const env = { HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: mkdtempSync(join(config, "limit-")) };
+      const r = await session(
+        { ...env, HYPERODDS_FORECAST_LIMIT: "3" },
+        [forecast(1, { forecasts }), forecast(2, { forecasts })],
+        2,
+      );
+      assert.equal(r.answers[1].result.structuredContent.status, "recorded");
+      assert.match(
+        r.answers[2].result.content[0].text,
+        /signs at most 3 forecasts a session, and has signed 2 .* It can sign 1 more\./,
+      );
+      assert.equal(server.recorded.length, 2);
     });
 
     test("pass through unsigned when HYPERODDS_FORECAST_SIGNING is off", async (t) => {

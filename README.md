@@ -114,8 +114,9 @@ Each message from the client goes out as one HTTPS request, and its response com
 The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
 plain http or another server. For a forecast, the bridge uses your forecaster key to sign the
 forecasts your agent asked for, and sends them in that same request. It never signs anything a
-server sends it. Beyond the protocol version agreed when the client connects, the bridge keeps only
-your forecaster key and the time it last signed on each market.
+server sends it. Beyond the protocol version and the capabilities your client reported when it
+connected, and a count of the forecasts it has signed since, the bridge keeps only your forecaster
+key and the time it last signed on each market.
 
 Requests run side by side. If one fails or gets no answer within 30 seconds, the client receives a
 JSON-RPC error that names the cause; a cancelled request is dropped. The bridge takes lines of up
@@ -192,11 +193,18 @@ holds funds. To forecast as a wallet you already have, see
 
 ### Approving forecasts
 
-With signing on, the bridge enters forecasts as soon as your agent calls `odds_forecast`. Your
-client's prompt to approve that tool call is the only confirmation, so keep approval on for it if
-you want to see each forecast before it is entered. The tool's description tells the agent to enter
-forecasts only when you ask, and not to act on instructions in market titles, side names or
-deployer names.
+With signing on, the bridge enters forecasts when your agent calls `odds_forecast`, after two
+checks of its own:
+- **It asks you first, if your client can.** When your client supports MCP elicitation forms, the
+  bridge shows you each call's outcome ids, probabilities and forecaster before it signs, and
+  enters nothing unless you accept. Otherwise your client's prompt to approve the tool call is the
+  only confirmation, so keep approval on for `odds_forecast` if you want to see each forecast before
+  it is entered.
+- **It signs at most 200 forecasts a session**, from when your client starts the bridge until it
+  stops it. Set `HYPERODDS_FORECAST_LIMIT` to change that. Forecasts the server refuses don't count.
+
+The tool's description tells the agent to enter forecasts only when you ask, and not to act on
+instructions in market titles, rules, side names or deployer names.
 
 ### Signing with your own wallet
 
@@ -252,6 +260,7 @@ The bridge reads its settings from the environment. In an entry you add by hand,
 | `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp`                         | The server to forward to: https, or plain http only on this computer              |
 | `HYPERODDS_FORECAST_KEY`     | The key file                                               | A private key made for forecasts, 64 hex digits                                   |
 | `HYPERODDS_FORECAST_SIGNING` | `on`                                                       | `off` sends forecasts unsigned, for a sign link to a wallet                       |
+| `HYPERODDS_FORECAST_LIMIT`   | `200`                                                      | The most forecasts the bridge signs in a session, from start to exit              |
 | `HYPERODDS_SITE_URL`         | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |
 
 ```json

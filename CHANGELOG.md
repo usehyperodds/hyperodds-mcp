@@ -20,6 +20,17 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   grow until the bridge ran out of memory. Event streams are also read in one pass, so a large
   event no longer costs time in proportion to its size squared.
 
+### Added
+
+- When the client supports MCP elicitation forms, the bridge asks the person to confirm each
+  `odds_forecast` call before it signs, showing the outcome ids, probabilities and forecaster.
+  Nothing is entered without an accept. Other clients work as before.
+- The bridge signs at most 200 forecasts a session, from start to exit, and says so when a call
+  would pass that. `HYPERODDS_FORECAST_LIMIT` changes the limit. Forecasts the server refuses
+  don't count.
+- The `odds_forecast` description now also names market rules among the deployer-written text an
+  agent must treat as data, never as instructions.
+
 ## [0.2.3] - 2026-11-26
 
 ### Changed

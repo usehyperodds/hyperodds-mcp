@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
-import { Bridge } from "./bridge.js";
+import { Bridge, FORECAST_LIMIT } from "./bridge.js";
 import { keyPath, takeKey } from "./key.js";
 import { proxyNote } from "./proxy.js";
 
@@ -11,7 +11,7 @@ const USAGE = `hyperodds-mcp ${version}
 
 Connects an MCP client on stdio to Hyperodds: data on Hyperliquid HIP-4 outcome markets, and
 forecasts for Hyperodds' public record, signed on this computer. Add it to your client with the
-command: npx -y @hyperodds/mcp
+command: npx -y @hyperodds/mcp@${version}
 
 Options:
   -h, --help                  show this help
@@ -23,6 +23,8 @@ Environment:
   HYPERODDS_FORECAST_KEY      private key made for forecasts, 64 hex digits (default: the key
                               made on the first forecast, kept in ${keyPath()})
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
+  HYPERODDS_FORECAST_LIMIT    most forecasts signed in a session, from start to exit
+                              (default ${FORECAST_LIMIT})
   HYPERODDS_SITE_URL          site that publishes the server's forecast records, for links to
                               them (default https://usehyperodds.com with the hosted server)
   HTTPS_PROXY                 proxy for an https server
@@ -81,6 +83,9 @@ const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))
   fail("HYPERODDS_FORECAST_SIGNING must be on or off.");
 const signs = !["off", "false"].includes(signing.trim().toLowerCase());
+const limitSetting = process.env.HYPERODDS_FORECAST_LIMIT?.trim() || String(FORECAST_LIMIT);
+if (!/^\d{1,6}$/.test(limitSetting) || Number(limitSetting) < 1)
+  fail("HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999.");
 
 const log = (line: string) => process.stderr.write(`hyperodds-mcp: ${line}\n`);
 const flags = [...process.execArgv, ...(process.env.NODE_OPTIONS ?? "").split(/\s+/)];
@@ -98,6 +103,7 @@ const bridge = new Bridge({
   networkNote: proxy?.text,
   keys: signs ? { env: envKey, path: keyPath(), log } : undefined,
   siteUrl: site,
+  forecastLimit: Number(limitSetting),
 });
 
 if (process.stdin.isTTY)
