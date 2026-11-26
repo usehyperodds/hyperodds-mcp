@@ -5,6 +5,7 @@
 import { randomUUID } from "node:crypto";
 import {
   closeSync,
+  constants,
   fstatSync,
   fsyncSync,
   linkSync,
@@ -55,13 +56,23 @@ const errno = (error: unknown) => (error as NodeJS.ErrnoException)?.code ?? "unk
 // Windows has no owner and mode bits to check; the key relies on the permissions of %APPDATA%.
 const posix = process.platform !== "win32";
 
-/** Anyone who can write to the key's folder could put a key of their own in its place. */
+/** Anyone who owns or can write to the key's folder could put a key of their own in its place. */
 function checkFolder(dir: string): void {
-  if (posix && (statSync(dir).mode & 0o022) !== 0)
+  if (!posix) return;
+  const stat = statSync(dir);
+  if (stat.uid !== process.getuid?.())
+    throw new Error(
+      `${dir}, the folder that holds the forecaster key, belongs to another user of this computer, so the bridge won't use it. Set XDG_CONFIG_HOME to a folder of your own.`,
+    );
+  if ((stat.mode & 0o022) !== 0)
     throw new Error(
       `Other users of this computer can write to ${dir}, the folder that holds the forecaster key, so the bridge won't use it. Run: chmod go-w "${dir}"`,
     );
 }
+
+// A link would let whoever can change it choose the key, and a dangling one would read as no key
+// at all, so forecasts would leave unsigned.
+const READ = posix ? constants.O_RDONLY | constants.O_NOFOLLOW : "r";
 
 function parse(text: string): Uint8Array | null {
   const hex = text.trim().replace(/^0x/i, "");
@@ -85,9 +96,14 @@ function read(source: KeySource): Signer | null {
   const { path } = source;
   let fd: number;
   try {
-    fd = openSync(path, "r");
+    fd = openSync(path, READ);
   } catch (error) {
     if (errno(error) === "ENOENT") return null;
+    // FreeBSD answers a link with EMLINK.
+    if (errno(error) === "ELOOP" || errno(error) === "EMLINK")
+      throw new Error(
+        `${path} is a link, not the forecaster key itself, so the bridge won't use it. Put the key file there, or move the link aside to make a new key on the next forecast.`,
+      );
     throw new Error(`Could not read the forecaster key at ${path} (${errno(error)}).`);
   }
   try {

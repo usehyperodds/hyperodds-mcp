@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
@@ -146,6 +157,43 @@ console.log(openKey({ path, log: () => {} }, true).address);`;
     } finally {
       chmodSync(dir, 0o700);
     }
+  });
+
+  test("in a folder another user owns is refused, and none is made there", { skip: !posixUser }, () => {
+    // A folder root owns stands in for another user's.
+    const path = "/usr/forecaster.key";
+    assert.throws(() => openKey({ path, log: assert.fail }, true), {
+      message:
+        /^\/usr, the folder that holds the forecaster key, belongs to another user of this computer, so the bridge won't use it\. Set XDG_CONFIG_HOME/,
+    });
+    assert.equal(existsSync(path), false);
+  });
+
+  test("that is a link is refused, a dangling one too, and no key is made in its place", {
+    skip: process.platform === "win32",
+  }, () => {
+    const link = /^.+forecaster\.key is a link, not the forecaster key itself, so the bridge won't use it\./;
+    const path = freshPath();
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+    const elsewhere = join(work, `wallet-${dirs}.txt`);
+    writeFileSync(elsewhere, `${TEST_KEY}\n`, { mode: 0o600 });
+    symlinkSync(elsewhere, path);
+    for (const create of [false, true])
+      assert.throws(
+        () => openKey({ path, log: assert.fail }, create),
+        (e) => {
+          assert.match(e.message, link);
+          assert.ok(!e.message.includes(TEST_KEY.slice(2)));
+          return true;
+        },
+      );
+    rmSync(path);
+    const nowhere = join(work, `nowhere-${dirs}`);
+    symlinkSync(nowhere, path);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
+    assert.equal(existsSync(nowhere), false);
+    assert.deepEqual(readdirSync(dirname(path)), ["forecaster.key"]);
   });
 
   test("from HYPERODDS_FORECAST_KEY is read once and leaves the environment", () => {

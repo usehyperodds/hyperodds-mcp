@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
@@ -658,6 +667,19 @@ describe("forecasts signed on this computer", () => {
     assert.equal(h.out[0].result.isError, true);
     assert.match(h.out[0].result.content[0].text, /^HYPERODDS_FORECAST_KEY is not a private key/);
     assert.ok(!JSON.stringify([h.out, h.logs]).includes("not a key"));
+  });
+
+  test("a key file that is a dangling link refuses the forecast, and nothing goes out unsigned", {
+    skip: process.platform === "win32",
+  }, async () => {
+    const h = signing();
+    mkdirSync(dirname(h.path), { recursive: true, mode: 0o700 });
+    symlinkSync(join(h.dir, "nowhere"), h.path);
+    await h.call(1, "odds_forecast", { forecasts: ten });
+    assert.equal(h.sent.length, 0);
+    assert.equal(h.out[0].result.isError, true);
+    assert.match(h.out[0].result.content[0].text, /forecaster\.key is a link, not the forecaster key itself/);
+    assert.equal(h.logs.length, 1);
   });
 
   test("with signing off, forecast calls and the tool list pass through untouched", async () => {

@@ -157,8 +157,8 @@ you can read:
 | macOS and Linux | `~/.config/hyperodds/forecaster.key`, or `$XDG_CONFIG_HOME/hyperodds/forecaster.key` when it is set |
 | Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
 
-On macOS and Linux, the bridge refuses a key file that another user owns, or one in a folder other
-users can write to, and says how to fix it. On Windows, the file relies on the permissions of your
+On macOS and Linux, the bridge refuses a key file that another user owns or that is a link, and one
+in a folder another user owns or other users can write to, and says how to fix it. On Windows, the file relies on the permissions of your
 `%APPDATA%` folder, which the computer's administrators can read.
 
 The key's address is your forecaster. After each forecast, the bridge names it and links its public

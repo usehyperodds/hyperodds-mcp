@@ -3,6 +3,14 @@
 Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- On macOS and Linux, the bridge refuses a forecaster key file that is a link, and a key folder
+  another user owns, and says how to fix it. Before, it followed the link, and a link that pointed
+  nowhere read as no key at all, so forecasts went to the server unsigned, for a sign link.
+
 ## [0.2.2] - 2026-11-25
 
 ### Changed
@@ -82,6 +90,7 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.2...HEAD
 [0.2.2]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.2
 [0.2.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.1
 [0.2.0]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.0
