@@ -157,9 +157,16 @@ you can read:
 | macOS and Linux | `~/.config/hyperodds/forecaster.key`, or `$XDG_CONFIG_HOME/hyperodds/forecaster.key` when it is set |
 | Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
 
-On macOS and Linux, the bridge refuses a key file that another user owns or that is a link, and one
-in a folder another user owns or other users can write to, and says how to fix it. On Windows, the file relies on the permissions of your
-`%APPDATA%` folder, which the computer's administrators can read.
+On macOS and Linux, the bridge won't use the key, and says how to fix it, when:
+- another user owns the file, or other users can read or change it;
+- the file, its `hyperodds` folder or the config folder above that (`~/.config` or
+  `$XDG_CONFIG_HOME`) is a link;
+- the file has more than one hard link, so the key also lives under another name;
+- another user owns the `hyperodds` folder, or other users can write to it.
+
+It won't make a new key in such a folder either. On Windows, the bridge makes none of these checks,
+and the file relies on the permissions of your `%APPDATA%` folder, which the computer's
+administrators can read.
 
 The key's address is your forecaster. After each forecast, the bridge names it and links its public
 record, `https://usehyperodds.com/forecasts/<address>`. With a server you set by hand, it links the

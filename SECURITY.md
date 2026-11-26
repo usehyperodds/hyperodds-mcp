@@ -20,6 +20,28 @@ unless you would rather we did not.
 Report problems in the console at usehyperodds.com the same way. Issues in Hyperliquid,
 Polymarket, Kalshi or other third parties belong with them.
 
+## The forecaster key
+
+The bridge keeps the forecaster key in `~/.config/hyperodds/forecaster.key` on macOS and Linux
+(`$XDG_CONFIG_HOME/hyperodds/forecaster.key` when it is set), and in
+`%APPDATA%\hyperodds\forecaster.key` on Windows. It makes the file with mode 600, in a folder with
+mode 700.
+
+On macOS and Linux, the bridge checks the file before it reads the key from it, and refuses the
+key, with the fix, when:
+- the file belongs to another user, or its group or other users can read or write it;
+- the file, the `hyperodds` folder or the config folder above it (`~/.config` or
+  `$XDG_CONFIG_HOME`) is a symbolic link;
+- the file has more than one hard link;
+- the `hyperodds` folder belongs to another user, or its group or other users can write to it.
+
+The folder checks run before the bridge makes a key as well, so it makes none through a link or in
+a folder others control. Folders above the config folder are not checked, since system folders are
+often links themselves, like `/var` on macOS and `/home` on Fedora Silverblue. On Windows, the
+bridge makes none of these checks, and the key relies on the permissions of `%APPDATA%`, which the
+computer's administrators can read. A key set in `HYPERODDS_FORECAST_KEY` is read once at startup
+and removed from the environment, and no key file is read or made.
+
 ## Supported versions
 
 Fixes go into the latest release. Upgrade with `npx -y @hyperodds/mcp@latest`, or let `npx` pick

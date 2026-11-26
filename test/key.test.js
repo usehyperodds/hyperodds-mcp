@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import {
   chmodSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -90,18 +91,29 @@ describe("forecaster key", () => {
     assert.equal(readFileSync(path, "utf8"), secret);
   });
 
-  test("warns when other users of the computer can read its file", {
+  test("that other users of the computer can read or change is refused, before it is read", {
     skip: process.platform === "win32",
   }, () => {
     const path = freshPath();
-    openKey({ path, ...quiet }, true);
+    const made = openKey({ path, ...quiet }, true);
     const text = readFileSync(path, "utf8");
-    rmSync(path);
-    writeFileSync(path, text, { mode: 0o644 });
-    const logs = [];
-    openKey({ path, log: (l) => logs.push(l) }, false);
-    assert.equal(logs.length, 1);
-    assert.match(logs[0], /can be read by other users/);
+    const open =
+      /^Other users of this computer can read or change .+forecaster\.key, the forecaster key, so the bridge won't sign with it\. Run: chmod 600 ".+forecaster\.key"$/;
+    for (const mode of [0o644, 0o660, 0o604, 0o620]) {
+      chmodSync(path, mode);
+      for (const create of [false, true])
+        assert.throws(
+          () => openKey({ path, log: assert.fail }, create),
+          (e) => open.test(e.message) && !e.message.includes(text.trim().slice(2)),
+        );
+    }
+    assert.equal(readFileSync(path, "utf8"), text);
+    // Refused on its permissions alone, whatever the file holds.
+    writeFileSync(path, "not a key");
+    assert.throws(() => openKey({ path, log: assert.fail }, false), { message: open });
+    writeFileSync(path, text);
+    chmodSync(path, 0o600);
+    assert.equal(openKey({ path, log: assert.fail }, false).address, made.address);
   });
 
   test("is made once when 16 bridges make their first forecast at the same moment", async () => {
@@ -194,6 +206,159 @@ console.log(openKey({ path, log: () => {} }, true).address);`;
       assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
     assert.equal(existsSync(nowhere), false);
     assert.deepEqual(readdirSync(dirname(path)), ["forecaster.key"]);
+  });
+
+  test("in a folder that is a link is refused, and nothing is made through it", {
+    skip: process.platform === "win32",
+  }, () => {
+    const link =
+      /^.+hyperodds, the folder that holds the forecaster key, is a link, so the bridge won't use it\. Move the folder it points to into its place/;
+    const path = freshPath();
+    const dir = dirname(path);
+    mkdirSync(dirname(dir), { mode: 0o700 });
+    const elsewhere = join(work, `folder-${dirs}`);
+    mkdirSync(elsewhere, { mode: 0o700 });
+    symlinkSync(elsewhere, dir);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
+    assert.deepEqual(readdirSync(elsewhere), []);
+
+    writeFileSync(join(elsewhere, "forecaster.key"), `${TEST_KEY}\n`, { mode: 0o600 });
+    for (const create of [false, true])
+      assert.throws(
+        () => openKey({ path, log: assert.fail }, create),
+        (e) => link.test(e.message) && !e.message.includes(TEST_KEY.slice(2)),
+      );
+    assert.deepEqual(readdirSync(elsewhere), ["forecaster.key"]);
+
+    rmSync(dir);
+    const nowhere = join(work, `nowhere-${dirs}`);
+    symlinkSync(nowhere, dir);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
+    assert.equal(existsSync(nowhere), false);
+  });
+
+  test("under a config folder that is a link is refused, and nothing is made through it", {
+    skip: process.platform === "win32",
+  }, () => {
+    // freshPath's numbered folder stands in for ~/.config or $XDG_CONFIG_HOME.
+    const link =
+      /^.+, which holds the forecaster key's folder, is a link, so the bridge won't use it\. Set XDG_CONFIG_HOME to a folder of your own that is not a link\.$/;
+    const path = freshPath();
+    const base = dirname(dirname(path));
+    const elsewhere = join(work, `config-${dirs}`);
+    mkdirSync(elsewhere, { mode: 0o700 });
+    symlinkSync(elsewhere, base);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
+    assert.deepEqual(readdirSync(elsewhere), []);
+
+    mkdirSync(join(elsewhere, "hyperodds"), { mode: 0o700 });
+    writeFileSync(join(elsewhere, "hyperodds", "forecaster.key"), `${TEST_KEY}\n`, { mode: 0o600 });
+    for (const create of [false, true])
+      assert.throws(
+        () => openKey({ path, log: assert.fail }, create),
+        (e) => link.test(e.message) && !e.message.includes(TEST_KEY.slice(2)),
+      );
+
+    rmSync(base);
+    const nowhere = join(work, `nowhere-${dirs}`);
+    symlinkSync(nowhere, base);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), { message: link });
+    assert.equal(existsSync(nowhere), false);
+  });
+
+  test("that is a hard link is refused, and taken once it has a file of its own", {
+    skip: process.platform === "win32",
+  }, () => {
+    const hard =
+      /^.+forecaster\.key is a hard link: the forecaster key in it also lives under another name on this computer, so the bridge won't sign with it\. Replace it with a copy of its own/;
+    const path = freshPath();
+    const made = openKey({ path, ...quiet }, true);
+    const text = readFileSync(path, "utf8");
+    const other = join(work, `other-name-${dirs}.key`);
+    linkSync(path, other);
+    for (const create of [false, true])
+      assert.throws(
+        () => openKey({ path, log: assert.fail }, create),
+        (e) => hard.test(e.message) && !e.message.includes(text.trim().slice(2)),
+      );
+    assert.equal(readFileSync(path, "utf8"), text);
+    rmSync(other);
+    assert.equal(openKey({ path, log: assert.fail }, false).address, made.address);
+  });
+
+  test("being saved by another bridge is read once it is in place, and a temp name left behind is refused", {
+    skip: process.platform === "win32",
+  }, async () => {
+    const path = freshPath();
+    const made = openKey({ path, ...quiet }, true);
+    // The name a key is saved under before it is linked into place, as another bridge leaves it
+    // for a moment.
+    const temp = join(dirname(path), ".forecaster.key.saving");
+    linkSync(path, temp);
+    const module = new URL("../dist/key.js", import.meta.url).href;
+    const code = `import { openKey } from ${JSON.stringify(module)};
+console.log(openKey({ path: process.argv[1], log: () => {} }, false).address);`;
+    const reading = new Promise((done, fail) =>
+      execFile(process.execPath, ["--input-type=module", "-e", code, path], (error, out) =>
+        error ? fail(error) : done(out.trim()),
+      ),
+    );
+    setTimeout(() => rmSync(temp), 300);
+    assert.equal(await reading, made.address);
+
+    linkSync(path, temp);
+    const started = Date.now();
+    assert.throws(() => openKey({ path, log: assert.fail }, false), { message: / is a hard link: / });
+    assert.ok(Date.now() - started >= 900);
+  });
+
+  test("under ~/.config is made in a real folder, and refused through a link", {
+    skip: process.platform === "win32",
+  }, async () => {
+    const module = new URL("../dist/key.js", import.meta.url).href;
+    // keyPath() in a child with HOME set to a test folder and no XDG_CONFIG_HOME, so the key is
+    // looked for in its ~/.config; it refuses to start anywhere else.
+    const code = `import { keyPath, openKey } from ${JSON.stringify(module)};
+const path = keyPath();
+if (!path.startsWith(process.env.HOME + "/")) throw new Error("not under the test HOME");
+try {
+  console.log(openKey({ path, log: () => {} }, true).address);
+} catch (error) {
+  console.log(error.message);
+}`;
+    const inHome = (home) => {
+      const env = { ...process.env, HOME: home };
+      delete env.XDG_CONFIG_HOME;
+      return new Promise((done, fail) =>
+        execFile(process.execPath, ["--input-type=module", "-e", code], { env }, (error, out) =>
+          error ? fail(error) : done(out.trim()),
+        ),
+      );
+    };
+
+    const home = join(work, `home-${++dirs}`);
+    mkdirSync(home, { mode: 0o700 });
+    const made = await inHome(home);
+    assert.match(made, /^0x[0-9a-f]{40}$/);
+    const path = join(home, ".config", "hyperodds", "forecaster.key");
+    assert.equal(statSync(path).mode & 0o777, 0o600);
+    assert.equal(statSync(dirname(path)).mode & 0o777, 0o700);
+    assert.equal(await inHome(home), made);
+
+    const linked = join(work, `home-${++dirs}`);
+    mkdirSync(linked, { mode: 0o700 });
+    const elsewhere = join(work, `config-${dirs}`);
+    mkdirSync(elsewhere, { mode: 0o700 });
+    symlinkSync(elsewhere, join(linked, ".config"));
+    assert.equal(
+      await inHome(linked),
+      `${join(linked, ".config")}, which holds the forecaster key's folder, is a link, so the bridge won't use it. Set XDG_CONFIG_HOME to a folder of your own that is not a link.`,
+    );
+    assert.deepEqual(readdirSync(elsewhere), []);
   });
 
   test("from HYPERODDS_FORECAST_KEY is read once and leaves the environment", () => {

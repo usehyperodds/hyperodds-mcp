@@ -10,6 +10,11 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - On macOS and Linux, the bridge refuses a forecaster key file that is a link, and a key folder
   another user owns, and says how to fix it. Before, it followed the link, and a link that pointed
   nowhere read as no key at all, so forecasts went to the server unsigned, for a sign link.
+- On macOS and Linux, the bridge also refuses a forecaster key file that other users can read or
+  change, or that has more than one hard link, and a key folder, or the config folder above it
+  (`~/.config` or `$XDG_CONFIG_HOME`), that is a link. Before, it only warned about a key others
+  could read, and it used a linked folder wherever the link led. A key the bridge made is already
+  readable only by you. For a key you copied in, the message gives the fix, usually `chmod 600`.
 - `HYPERODDS_MCP_URL` takes plain http only for a server on this computer (`localhost`,
   `127.x.x.x` or `[::1]`); any other server must be https. Over plain http, anyone on the network
   path could read signed forecasts before their market's cutoff and change the answers your agent
