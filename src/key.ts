@@ -54,7 +54,7 @@ export function takeKey(env: NodeJS.ProcessEnv = process.env): string | undefine
   return key;
 }
 
-const errno = (error: unknown) => (error as NodeJS.ErrnoException)?.code ?? "unknown error";
+export const errno = (error: unknown) => (error as NodeJS.ErrnoException)?.code ?? "unknown error";
 // Windows has no owner and mode bits to check; the key relies on the permissions of %APPDATA%.
 const posix = process.platform !== "win32";
 
@@ -88,9 +88,23 @@ function checkFolder(dir: string): void {
     );
 }
 
+/** Makes the folder for the key and the forecast times if it is missing, then checks it. */
+export function prepareFolder(dir: string): void {
+  // Before mkdir, which follows links.
+  checkLinks(dir);
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+  } catch (error) {
+    throw new Error(`Could not make ${dir}, the folder for the forecaster key (${errno(error)}).`);
+  }
+  // Again, for a link put in place while mkdir ran.
+  checkFolder(dir);
+}
+
 // A link would let whoever can change it choose the key, and a dangling one would read as no key
-// at all, so forecasts would leave unsigned.
-const READ = posix ? constants.O_RDONLY | constants.O_NOFOLLOW : "r";
+// at all, so forecasts would leave unsigned. Without O_NONBLOCK, opening a FIFO would wait for a
+// writer that may never come.
+export const READ = posix ? constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK : "r";
 // A key is saved under a name starting with this, then linked into place.
 const TEMP = ".forecaster.key.";
 const nap = new Int32Array(new SharedArrayBuffer(4));
@@ -106,6 +120,10 @@ function saving(dir: string, ino: number): boolean {
 function checkFile(path: string, fd: number): void {
   if (!posix) return;
   const stat = fstatSync(fd);
+  if (!stat.isFile())
+    throw new Error(
+      `${path} is not a file, so the bridge won't use it. Move it aside to make a new key on the next forecast.`,
+    );
   if (stat.uid !== process.getuid?.())
     throw new Error(
       `The forecaster key at ${path} belongs to another user of this computer, so the bridge won't sign with it. Move it aside, and the next forecast makes a key of your own.`,
@@ -158,7 +176,8 @@ function read(path: string): Signer | null {
   try {
     checkFile(path, fd);
     checkFolder(dirname(path));
-    const key = parse(readFileSync(fd, "utf8"));
+    // A key file is 67 bytes; don't read a large file whole to find that out.
+    const key = fstatSync(fd).size <= 1024 ? parse(readFileSync(fd, "utf8")) : null;
     if (!key)
       throw new Error(
         `${path} does not hold a forecaster key. Move it aside to make a new one on the next forecast.`,
@@ -189,16 +208,10 @@ export function openKey(source: KeySource, create: boolean): Signer | null {
 
   const dir = dirname(path);
   // With create off too: a linked folder that leads nowhere would read as no key, so forecasts
-  // would leave unsigned. And before mkdir, which follows links.
+  // would leave unsigned.
   checkLinks(dir);
   if (!create) return null;
-  try {
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
-  } catch (error) {
-    throw new Error(`Could not save a forecaster key to ${path} (${errno(error)}).`);
-  }
-  // Again, for a link put in place while mkdir ran.
-  checkFolder(dir);
+  prepareFolder(dir);
   const key = secp256k1.utils.randomSecretKey();
   // Written whole and synced under a name of its own, then linked into place: no bridge ever reads
   // half a key, and the link fails rather than replace a key another bridge saved a moment ago.

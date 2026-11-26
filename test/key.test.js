@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   chmodSync,
@@ -114,6 +114,23 @@ describe("forecaster key", () => {
     writeFileSync(path, text);
     chmodSync(path, 0o600);
     assert.equal(openKey({ path, log: assert.fail }, false).address, made.address);
+  });
+
+  test("that is not a regular file, or too large to be a key, is refused without waiting on it", {
+    skip: process.platform === "win32",
+  }, () => {
+    const path = freshPath();
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+    execFileSync("mkfifo", ["-m", "600", path]);
+    for (const create of [false, true])
+      assert.throws(() => openKey({ path, log: assert.fail }, create), {
+        message: /forecaster\.key is not a file, so the bridge won't use it\./,
+      });
+    rmSync(path);
+    writeFileSync(path, `${TEST_KEY}\n${" ".repeat(2000)}`, { mode: 0o600 });
+    assert.throws(() => openKey({ path, log: assert.fail }, false), {
+      message: /does not hold a forecaster key/,
+    });
   });
 
   test("is made once when 16 bridges make their first forecast at the same moment", async () => {

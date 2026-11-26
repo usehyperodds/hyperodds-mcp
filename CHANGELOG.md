@@ -19,6 +19,12 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   line from the client over 1 MB, each with a JSON-RPC error that says so. Before, either could
   grow until the bridge ran out of memory. Event streams are also read in one pass, so a large
   event no longer costs time in proportion to its size squared.
+- With a key from `HYPERODDS_FORECAST_KEY`, the bridge checks the folder for
+  `forecast-times.json` the way it checks the key's folder, and refuses to sign through a link
+  or in a folder others control. It reads that file only if it is a regular file of at most 1 MB,
+  opened without following a link, and never signs further than 10 minutes ahead of the clock,
+  whatever the file says. A key file must be a regular file too; a FIFO in its place no longer
+  stops the bridge.
 
 ### Added
 

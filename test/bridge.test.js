@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -9,6 +12,7 @@ import {
   rmSync,
   statSync,
   symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -635,6 +639,90 @@ describe("forecasts signed on this computer", () => {
     });
     assert.equal(again.sent[0].body.params.arguments.signed.message.time, 1763719202);
     assert.equal(again.out[0].result.structuredContent.status, "recorded");
+  });
+
+  const posixUser = process.platform !== "win32" && process.getuid?.() !== 0;
+
+  test("with a key from HYPERODDS_FORECAST_KEY, checks the forecast times' folder as the key's", {
+    skip: !posixUser,
+  }, async () => {
+    const open = signing({}, { env: TEST_KEY });
+    mkdirSync(dirname(open.path), { recursive: true });
+    chmodSync(dirname(open.path), 0o777);
+    await open.call(1, "odds_forecast", { forecasts: ten });
+    assert.equal(open.sent.length, 0);
+    assert.match(
+      open.out[0].result.content[0].text,
+      /^Other users of this computer can write to .+hyperodds, the folder/,
+    );
+    assert.deepEqual(readdirSync(dirname(open.path)), []);
+
+    const linked = signing({}, { env: TEST_KEY }, { forecastLimit: 10 });
+    const elsewhere = join(work, `times-elsewhere-${homes}`);
+    mkdirSync(elsewhere, { mode: 0o700 });
+    mkdirSync(linked.dir, { mode: 0o700 });
+    symlinkSync(elsewhere, dirname(linked.path));
+    await linked.call(1, "odds_forecast", { forecasts: ten });
+    assert.equal(linked.sent.length, 0);
+    assert.match(
+      linked.out[0].result.content[0].text,
+      /hyperodds, the folder that holds the forecaster key, is a link/,
+    );
+    assert.deepEqual(readdirSync(elsewhere), []);
+    // Its place under the session limit is given back.
+    rmSync(dirname(linked.path));
+    await linked.call(2, "odds_forecast", { forecasts: ten });
+    assert.equal(linked.out[1].result.structuredContent.status, "recorded");
+  });
+
+  test("reads forecast times only from a regular file under 1 MB, and never through a link", {
+    skip: process.platform === "win32",
+  }, async () => {
+    const frozen = 1763719200_000;
+    const ahead = (path) =>
+      writeFileSync(path, JSON.stringify({ [TEST_ADDRESS]: { [ten[0].outcome]: frozen / 1000 + 300 } }), {
+        mode: 0o600,
+      });
+    const cases = {
+      link: (file) => {
+        const target = `${file}.target`;
+        ahead(target);
+        symlinkSync(target, file);
+        return /forecast-times\.json is a link, so the bridge ignores it/;
+      },
+      fifo: (file) => {
+        execFileSync("mkfifo", [file]);
+        return /forecast-times\.json is not a regular file/;
+      },
+      large: (file) => {
+        writeFileSync(file, " ".repeat(1_000_001), { mode: 0o600 });
+        return /forecast-times\.json is over 1 MB/;
+      },
+    };
+    for (const [name, plant] of Object.entries(cases)) {
+      const h = signing({ now: () => frozen }, { env: TEST_KEY }, { now: () => frozen });
+      mkdirSync(dirname(h.path), { recursive: true, mode: 0o700 });
+      const file = join(dirname(h.path), "forecast-times.json");
+      const logged = plant(file);
+      await h.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+      assert.equal(h.sent[0].body.params.arguments.signed.message.time, frozen / 1000, name);
+      assert.match(h.logs[0], logged, name);
+      // Saved in its place as a file of its own.
+      assert.ok(lstatSync(file).isFile(), name);
+      assert.equal(statSync(file).mode & 0o777, 0o600, name);
+    }
+  });
+
+  test("never signs further ahead than the server takes, whatever the times file says", async () => {
+    const frozen = 1763719200_000;
+    const h = signing({ now: () => frozen }, { env: TEST_KEY }, { now: () => frozen });
+    mkdirSync(dirname(h.path), { recursive: true, mode: 0o700 });
+    const file = join(dirname(h.path), "forecast-times.json");
+    writeFileSync(file, JSON.stringify({ [TEST_ADDRESS]: { [ten[0].outcome]: frozen / 1000 + 86_400 } }));
+    await h.call(1, "odds_forecast", { forecasts: ten.slice(0, 2) });
+    assert.equal(h.sent[0].body.params.arguments.signed.message.time, frozen / 1000 + 600);
+    assert.equal(h.out[0].result.structuredContent.status, "recorded");
+    assert.equal(JSON.parse(readFileSync(file, "utf8"))[TEST_ADDRESS][ten[0].outcome], frozen / 1000 + 600);
   });
 
   test("a refused forecast leaves its time free", async () => {

@@ -164,13 +164,14 @@ you can read:
 | Windows         | `%APPDATA%\hyperodds\forecaster.key`                                                                |
 
 On macOS and Linux, the bridge won't use the key, and says how to fix it, when:
-- another user owns the file, or other users can read or change it;
+- the file is not a regular file, or another user owns it, or other users can read or change it;
 - the file, its `hyperodds` folder or the config folder above that (`~/.config` or
   `$XDG_CONFIG_HOME`) is a link;
 - the file has more than one hard link, so the key also lives under another name;
 - another user owns the `hyperodds` folder, or other users can write to it.
 
-It won't make a new key in such a folder either. On Windows, the bridge makes none of these checks,
+It won't make a new key in such a folder either, or read or save `forecast-times.json` there, with
+a key from `HYPERODDS_FORECAST_KEY` too. On Windows, the bridge makes none of these checks,
 and the file relies on the permissions of your `%APPDATA%` folder, which the computer's
 administrators can read.
 

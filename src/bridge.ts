@@ -288,7 +288,14 @@ export class Bridge {
     const nowMs = (this.opts.now ?? Date.now)();
     const outcomes = entries.map((e) => e.outcome);
     const times = this.times!;
-    const signable = forecastMessage(signer.address, entries, times.next(signer.address, outcomes, nowMs));
+    let time: number;
+    try {
+      time = times.next(signer.address, outcomes, nowMs);
+    } catch (error) {
+      this.signed -= entries.length;
+      return this.refuse(id, (error as Error).message);
+    }
+    const signable = forecastMessage(signer.address, entries, time);
     const signed = { ...signable, signature: signer.sign(digest(signable)) };
     let serverMs = Number.NaN;
     let recorded: Message | null = null;
