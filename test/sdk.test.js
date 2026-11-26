@@ -7,6 +7,7 @@ import { after, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { digest, forecastMessage } from "../dist/forecast.js";
 import { openKey } from "../dist/key.js";
 import { serve, standIn } from "./stand-in.js";
@@ -26,7 +27,7 @@ const two = [
  * tool list first, so it checks every answer against its tool's output schema and throws on a
  * mismatch.
  */
-async function connect(t, server, env = {}) {
+async function connect(t, server, env = {}, answer) {
   const { url, close } = await serve(server);
   const transport = new StdioClientTransport({
     command: process.execPath,
@@ -34,7 +35,11 @@ async function connect(t, server, env = {}) {
     env: { HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: join(work, String(++homes)), ...env },
     stderr: "pipe",
   });
-  const client = new Client({ name: "hyperodds-sdk-test", version: "1.0.0" });
+  const client = new Client(
+    { name: "hyperodds-sdk-test", version: "1.0.0" },
+    { capabilities: answer ? { elicitation: {} } : {} },
+  );
+  if (answer) client.setRequestHandler(ElicitRequestSchema, answer);
   t.after(async () => {
     await client.close();
     close();
@@ -108,6 +113,29 @@ describe("the official MCP SDK client", () => {
     const empty = await fresh("odds_forecast_record", {});
     assert.equal(empty.isError, true);
     assert.match(empty.content[0].text, /^No forecast has been signed on this computer yet/);
+  });
+
+  test("asks a client that takes elicitation forms to confirm, and enters only what it accepts", async (t) => {
+    const server = standIn();
+    const asked = [];
+    let action = "accept";
+    const call = await connect(t, server, {}, (request) => {
+      asked.push(request.params);
+      return { action };
+    });
+    const recorded = await call("odds_forecast", { forecasts: two });
+    assert.equal(recorded.structuredContent.status, "recorded");
+    assert.match(asked[0].message, /^Sign these 2 forecasts and enter them in Hyperodds' public record/);
+    assert.deepEqual(asked[0].requestedSchema, { type: "object", properties: {} });
+
+    action = "decline";
+    const declined = await call("odds_forecast", { forecasts: two });
+    assert.equal(declined.isError, true);
+    assert.equal(
+      declined.content[0].text,
+      "Nothing was entered: the person did not confirm these forecasts.",
+    );
+    assert.equal(server.recorded.length, 2);
   });
 
   test("throws on a refusal without its status, the shape refusals had before", async (t) => {
