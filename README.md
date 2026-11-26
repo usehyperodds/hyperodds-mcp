@@ -171,9 +171,13 @@ On macOS and Linux, the bridge won't use the key, and says how to fix it, when:
 - another user owns the `hyperodds` folder, or other users can write to it.
 
 It won't make a new key in such a folder either, or read or save `forecast-times.json` there, with
-a key from `HYPERODDS_FORECAST_KEY` too. On Windows, the bridge makes none of these checks,
-and the file relies on the permissions of your `%APPDATA%` folder, which the computer's
-administrators can read.
+a key from `HYPERODDS_FORECAST_KEY` too. On Windows, the bridge makes none of these checks, and the
+file relies on the permissions of your `%APPDATA%` folder, which the computer's administrators can
+read.
+
+In the errors your client and its model see, your home folder appears as `~`, or as `$HOME` in a
+command to run. Only the client's server log, where the bridge writes its diagnostics, has the
+full path.
 
 The key's address is your forecaster. After each forecast, the bridge names it and links its public
 record, `https://usehyperodds.com/forecasts/<address>`. With a server you set by hand, it links the

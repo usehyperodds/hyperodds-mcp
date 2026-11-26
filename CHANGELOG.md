@@ -25,6 +25,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   opened without following a link, and never signs further than 10 minutes ahead of the clock,
   whatever the file says. A key file must be a regular file too; a FIFO in its place no longer
   stops the bridge.
+- Errors the client sees write your home folder as `~`, or `$HOME` inside a command to run, so
+  the model never sees your user name. The server log keeps the full path.
 
 ### Added
 

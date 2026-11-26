@@ -1065,6 +1065,39 @@ describe("forecasts signed on this computer", () => {
     assert.deepEqual(tools.odds_leaderboard, TOOLS[2]);
   });
 
+  test("names the home folder as ~ to the client, and in full only in the log", {
+    skip: process.platform === "win32",
+  }, async () => {
+    const h = signing({}, {}, { home: work });
+    await h.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+    chmodSync(h.path, 0o644);
+    await h.call(2, "odds_forecast", { forecasts: ten.slice(0, 1) });
+    const shown = h.out[1].result.content[0].text;
+    const where = `${homes}/hyperodds/forecaster.key`;
+    assert.equal(
+      shown,
+      `Other users of this computer can read or change ~/${where}, the forecaster key, so the bridge won't sign with it. Run: chmod 600 "$HOME/${where}"`,
+    );
+    assert.ok(!shown.includes(work));
+    assert.equal(h.logs.at(-1), shown.replace("~", work).replace("$HOME", work));
+    // The command it gives runs as it is.
+    execFileSync("sh", ["-c", shown.split("Run: ")[1]], { env: { HOME: work } });
+    await h.call(3, "odds_forecast", { forecasts: ten.slice(0, 1) });
+    assert.equal(h.out[2].result.structuredContent.status, "recorded");
+
+    // A folder that only starts with the home folder's name is left as it is.
+    const other = join(`${work}-other`, "hyperodds", "forecaster.key");
+    try {
+      const near = signing({}, { path: other }, { home: work });
+      await near.call(1, "odds_forecast", { forecasts: ten.slice(0, 1) });
+      chmodSync(other, 0o644);
+      await near.call(2, "odds_forecast", { forecasts: ten.slice(0, 1) });
+      assert.ok(near.out[1].result.content[0].text.includes(`${work}-other/hyperodds/forecaster.key`));
+    } finally {
+      rmSync(`${work}-other`, { recursive: true, force: true });
+    }
+  });
+
   test("a key it cannot use is a tool error that names the variable, not the value", async () => {
     const h = signing({}, { env: "not a key" });
     await h.call(1, "odds_forecast", { forecasts: ten });

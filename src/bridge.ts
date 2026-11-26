@@ -6,6 +6,7 @@
  * With a forecaster key, the bridge also signs forecasts here: an odds_forecast call goes to the
  * server as a message the bridge built and signed itself.
  */
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { checkArguments, checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
 import { type KeySource, openKey, type Signer } from "./key.js";
@@ -49,6 +50,8 @@ export interface BridgeOptions {
   siteUrl?: string;
   /** The most forecasts the bridge signs in one session, from start to exit. */
   forecastLimit?: number;
+  /** Written as ~ in what the client sees. Default: the user's home folder. */
+  home?: string;
   now?: () => number;
 }
 
@@ -373,9 +376,10 @@ export class Bridge {
     }
   }
 
+  /** A tool error. The client, and with it the model, sees no home folder; the log has it in full. */
   private refuse(id: Id, why: string): Message {
     this.opts.log(why);
-    return toolError(id, why);
+    return toolError(id, withoutHome(why, this.opts.home ?? homedir()));
   }
 
   /**
@@ -513,6 +517,18 @@ export class Bridge {
       ...(this.protocolVersion ? { "mcp-protocol-version": this.protocolVersion } : {}),
     };
   }
+}
+
+/**
+ * The home folder in a message, as ~, or as $HOME inside a quoted path, where a shell would leave
+ * ~ as it is, so the commands in it still run.
+ */
+function withoutHome(text: string, home: string): string {
+  if (home.length < 2) return text;
+  const escaped = home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`(")?${escaped}(?=[\\\\/",\\s]|$)`, "g"), (_, quote) =>
+    quote ? '"$HOME' : "~",
+  );
 }
 
 /** Whether these client capabilities take an elicitation form: `{}` means form, before url mode. */
