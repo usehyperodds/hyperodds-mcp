@@ -31,6 +31,10 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   and SECURITY.md now say plainly what removing `HYPERODDS_FORECAST_KEY` from the bridge's
   environment does not do: the key stays in the client's config and in the environment the
   operating system recorded when the bridge started.
+- Releases publish in two jobs: one that checks out the tag without keeping its credentials,
+  installs with `--ignore-scripts`, tests and packs with a read-only token, and one that publishes
+  the packed package to npm with provenance and makes the GitHub release, running nothing from the
+  repository. Release notes now come from the tag's own changelog entry.
 - SECURITY.md explains the zod advisory `npm audit` reports: it affects only tools used to build
   and test, never the published package or the extension.
 

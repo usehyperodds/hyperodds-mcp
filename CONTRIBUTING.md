@@ -44,10 +44,14 @@ By contributing, you agree to release your work under the [MIT license](LICENSE)
 
 ## Releases
 
-Maintainers release from `main`: bump the version in `package.json`, `mcpb/manifest.json` and the
-README's pinned `npx` line, add the entry to [CHANGELOG.md](CHANGELOG.md) and push a `vX.Y.Z` tag.
-The release workflow checks the tag against `package.json` and publishes to npm with provenance, so
-the package links back to the commit and workflow that built it. It then opens the GitHub release
-from the changelog entry and attaches the Claude Desktop extension, `hyperodds.mcpb`, with a build
-attestation and its SHA-256 in the notes. If a run fails partway, re-run it: it skips what an
-earlier run already published.
+Maintainers release from `main`: bump the version in `package.json`, `package-lock.json`,
+`mcpb/manifest.json` and the README's pinned client entries (a test checks the pins), move the
+changelog's Unreleased entries under the new version in [CHANGELOG.md](CHANGELOG.md), and push a
+`vX.Y.Z` tag. The release workflow runs in two jobs. The first checks out the tag without keeping
+its credentials, installs with `npm ci --ignore-scripts`, runs every check, confirms the tag matches
+`package.json`, and packs the npm package and the Claude Desktop extension, `hyperodds.mcpb`, with a
+token that can only read. The second holds the npm token and write access, and runs nothing from the
+repository: it attests the extension, publishes the packed package to npm with provenance, so the
+package links back to the commit and workflow that built it, and opens the GitHub release from the
+version's changelog entry, with the extension and its SHA-256. If a run fails partway, re-run it: it
+skips what an earlier run already published.
