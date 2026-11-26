@@ -231,7 +231,7 @@ The bridge reads its settings from the environment. In an entry you add by hand,
 
 | Variable                     | Default                                                    | Purpose                                                                           |
 | ---------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp`                         | The server to forward to                                                          |
+| `HYPERODDS_MCP_URL`          | `https://api.usehyperodds.com/mcp`                         | The server to forward to: https, or plain http only on this computer              |
 | `HYPERODDS_FORECAST_KEY`     | The key file                                               | A private key made for forecasts, 64 hex digits                                   |
 | `HYPERODDS_FORECAST_SIGNING` | `on`                                                       | `off` sends forecasts unsigned, for a sign link to a wallet                       |
 | `HYPERODDS_SITE_URL`         | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |

@@ -291,6 +291,31 @@ describe("hyperodds-mcp", () => {
     });
   });
 
+  test("takes plain http only for a server on this computer", async () => {
+    const remote = [
+      "http://example.com/mcp",
+      "http://10.0.0.5:3100/mcp",
+      "http://127.0.0.1.nip.io/mcp",
+      "http://[::ffff:127.0.0.1]/mcp",
+    ];
+    for (const server of remote) {
+      const r = await run("", { HYPERODDS_MCP_URL: server });
+      assert.equal(r.code, 2, server);
+      assert.equal(
+        r.stderr,
+        "hyperodds-mcp: HYPERODDS_MCP_URL must be https unless the server is on this computer (localhost, 127.x.x.x or [::1]). Run with --help for usage.\n",
+      );
+    }
+    const local = [
+      "http://localhost:1/mcp",
+      "http://127.0.0.2:1/mcp",
+      "http://[::1]:1/mcp",
+      "HTTP://127.1:1/mcp",
+    ];
+    for (const server of [...local, "https://example.com/mcp"])
+      assert.equal((await run("", { HYPERODDS_MCP_URL: server })).code, 0, server);
+  });
+
   test("refuses a server URL with a username or password, and never repeats a secret", async () => {
     const login = await run("", { HYPERODDS_MCP_URL: "https://user:s3cret@example.com/mcp" });
     assert.equal(login.code, 2);

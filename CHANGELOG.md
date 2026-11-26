@@ -10,6 +10,10 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - On macOS and Linux, the bridge refuses a forecaster key file that is a link, and a key folder
   another user owns, and says how to fix it. Before, it followed the link, and a link that pointed
   nowhere read as no key at all, so forecasts went to the server unsigned, for a sign link.
+- `HYPERODDS_MCP_URL` takes plain http only for a server on this computer (`localhost`,
+  `127.x.x.x` or `[::1]`); any other server must be https. Over plain http, anyone on the network
+  path could read signed forecasts before their market's cutoff and change the answers your agent
+  sees.
 
 ## [0.2.2] - 2026-11-25
 

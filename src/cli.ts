@@ -18,7 +18,8 @@ Options:
   -v, --version               show the version
 
 Environment:
-  HYPERODDS_MCP_URL           server to forward to (default ${DEFAULT_URL})
+  HYPERODDS_MCP_URL           server to forward to, https or on this computer
+                              (default ${DEFAULT_URL})
   HYPERODDS_FORECAST_KEY      private key made for forecasts, 64 hex digits (default: the key
                               made on the first forecast, kept in ${keyPath()})
   HYPERODDS_FORECAST_SIGNING  off to leave forecasts unsigned, for a sign link (default on)
@@ -55,6 +56,13 @@ const target = new URL(url);
 if (target.username || target.password) fail("HYPERODDS_MCP_URL must not contain a username or password.");
 if (target.protocol !== "https:" && target.protocol !== "http:")
   fail(`HYPERODDS_MCP_URL must be an http or https URL, not "${target.protocol.slice(0, -1)}".`);
+// Over plain http anyone on the path could read signed forecasts before their market's cutoff, and
+// rewrite the answers the agent acts on. URL has already turned 127.1 and [0::1] into their usual form.
+const loopback = /^(localhost|127(\.\d{1,3}){3}|\[::1\])$/;
+if (target.protocol === "http:" && !loopback.test(target.hostname))
+  fail(
+    "HYPERODDS_MCP_URL must be https unless the server is on this computer (localhost, 127.x.x.x or [::1]).",
+  );
 // The query string could carry a secret too, so errors and logs leave it out.
 const shown = `${target.origin}${target.pathname}`;
 
