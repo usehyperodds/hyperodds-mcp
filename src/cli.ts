@@ -88,10 +88,11 @@ const proxy = proxyNote(target, process.env, process.versions.node, flags);
 if (proxy?.ignored) log(proxy.text);
 // The client went away: nothing is left to answer.
 process.stdout.on("error", () => process.exit(0));
+const write = (message: object) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const bridge = new Bridge({
   url: target.href,
   label: target.href === DEFAULT_URL ? "Hyperodds" : `${shown} (set by HYPERODDS_MCP_URL)`,
-  write: (message) => process.stdout.write(`${JSON.stringify(message)}\n`),
+  write,
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
@@ -102,16 +103,38 @@ const bridge = new Bridge({
 if (process.stdin.isTTY)
   log(`Waiting for an MCP client on stdin, forwarding to ${shown}. Run with --help for usage.`);
 
+// The server takes 256 KB a message, so a line four times that is never one, and the bridge won't
+// hold it.
+const MAX_LINE_BYTES = 1_000_000;
+const tooLong = () => {
+  log("The client sent a line over 1 MB; the bridge dropped it.");
+  write({
+    jsonrpc: "2.0",
+    id: null,
+    error: { code: -32600, message: "Invalid request: a message is over 1 MB, the most the bridge takes." },
+  });
+};
+
 // Messages end at "\n" only. readline would also split at U+2028 and U+2029, which JSON allows
 // unescaped inside strings; a trailing "\r" is whitespace to JSON.parse.
 let buffer = "";
+// Set while the rest of a line over the limit is still to come; all of it is dropped.
+let dropping = false;
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk: string) => {
   buffer += chunk;
   for (let end = buffer.indexOf("\n"); end >= 0; end = buffer.indexOf("\n")) {
-    bridge.receive(buffer.slice(0, end));
+    const line = buffer.slice(0, end);
     buffer = buffer.slice(end + 1);
+    if (dropping) dropping = false;
+    else if (Buffer.byteLength(line) > MAX_LINE_BYTES) tooLong();
+    else bridge.receive(line);
   }
+  if (!dropping && Buffer.byteLength(buffer) > MAX_LINE_BYTES) {
+    dropping = true;
+    tooLong();
+  }
+  if (dropping) buffer = "";
 });
 // The client closing stdin is how MCP asks a server to stop: drop what is in flight and exit.
 process.stdin.on("end", () => {

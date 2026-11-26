@@ -180,6 +180,55 @@ describe("hyperodds-mcp", () => {
     assert.deepEqual(JSON.parse(answer).result.echo, call.params);
   });
 
+  test("drops a line over 1 MB, says so, and goes on with the next", async () => {
+    const proc = spawn(process.execPath, [cli], { env: { ...process.env, HYPERODDS_MCP_URL: url } });
+    let stdout = "";
+    let stderr = "";
+    proc.stderr.on("data", (d) => {
+      stderr += d;
+    });
+    const answered = new Promise((done) =>
+      proc.stdout.on("data", (d) => {
+        stdout += d;
+        if (stdout.split("\n").filter(Boolean).length === 4) done();
+      }),
+    );
+    const long = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { q: "x".repeat(1_000_000) },
+    });
+    // In pieces, then whole in one write, then a line just under the limit.
+    for (let i = 0; i < long.length; i += 65_536) proc.stdin.write(long.slice(i, i + 65_536));
+    proc.stdin.write(`\n${long}\n`);
+    const fits = JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { q: "" } });
+    proc.stdin.write(`${fits.replace('"q":""', `"q":"${"z".repeat(1_000_000 - fits.length)}"`)}\n`);
+    proc.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 2, method: "ping" })}\n`);
+    await answered;
+    proc.stdin.end();
+    assert.equal(await new Promise((r) => proc.on("close", r)), 0);
+    const lines = stdout
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    const refusal = {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32600, message: "Invalid request: a message is over 1 MB, the most the bridge takes." },
+    };
+    assert.deepEqual(lines.slice(0, 2), [refusal, refusal]);
+    assert.deepEqual(
+      lines
+        .slice(2)
+        .map((l) => l.id)
+        .sort(),
+      [2, 3],
+    );
+    assert.equal(stderr.split("\n").filter(Boolean).length, 2);
+    assert.match(stderr, /^hyperodds-mcp: The client sent a line over 1 MB; the bridge dropped it\.\n/);
+  });
+
   test("exits quietly when the client stops reading", async () => {
     const proc = spawn(process.execPath, [cli], { env: { ...process.env, HYPERODDS_MCP_URL: url } });
     let stderr = "";

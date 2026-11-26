@@ -53,6 +53,9 @@ const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INTERNAL_ERROR = -32603;
 
+/** The most of one answer the bridge reads, JSON or event stream. The server's are far smaller. */
+export const MAX_ANSWER_BYTES = 8_000_000;
+
 const isId = (v: unknown): v is Id => typeof v === "string" || typeof v === "number";
 const isObject = (v: unknown): v is Message => typeof v === "object" && v !== null && !Array.isArray(v);
 const isRecord = (v: unknown): v is Json => isObject(v);
@@ -327,14 +330,20 @@ export class Bridge {
     }
     onHeaders?.(res.headers);
     const type = res.headers.get("content-type") ?? "";
+    const tooLarge = () =>
+      new Failure(`${this.opts.label} sent an answer over 8 MB, so the bridge stopped reading it.`);
+    if (Number(res.headers.get("content-length")) > MAX_ANSWER_BYTES) {
+      await res.body?.cancel();
+      throw tooLarge();
+    }
     let taken: Message | null | undefined;
     if (type.includes("text/event-stream") && res.body) {
-      for await (const data of eventData(res.body)) {
+      for await (const data of eventData(res.body, tooLarge)) {
         taken = this.take(JSON.parse(data) as Message, replyTo);
         if (taken !== undefined) break;
       }
     } else if (type.includes("application/json")) {
-      taken = this.take((await res.json()) as Message, replyTo);
+      taken = this.take(JSON.parse(await bounded(res.body, tooLarge)) as Message, replyTo);
     } else {
       await res.body?.cancel();
     }
@@ -486,23 +495,45 @@ function failureText(error: unknown, reason: unknown, opts: BridgeOptions, timeo
   return `Could not reach ${label} (${detail}).${note}`;
 }
 
-async function* eventData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+/** The body as text, read up to MAX_ANSWER_BYTES. */
+async function bounded(body: ReadableStream<Uint8Array> | null, tooLarge: () => Error): Promise<string> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of (body ?? []) as AsyncIterable<Uint8Array>) {
+    size += chunk.byteLength;
+    if (size > MAX_ANSWER_BYTES) throw tooLarge();
+    chunks.push(chunk);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+/**
+ * The data of each event in a stream, which ends past MAX_ANSWER_BYTES, so no event, or event not
+ * yet ended, is larger. Each chunk is scanned once.
+ */
+async function* eventData(body: ReadableStream<Uint8Array>, tooLarge: () => Error): AsyncGenerator<string> {
   const decoder = new TextDecoder();
-  let buffer = "";
+  let line = "";
+  let data: string[] = [];
+  let held = "";
+  let size = 0;
   for await (const chunk of body as AsyncIterable<Uint8Array>) {
-    buffer += decoder.decode(chunk, { stream: true });
+    size += chunk.byteLength;
+    if (size > MAX_ANSWER_BYTES) throw tooLarge();
+    let text = held + decoder.decode(chunk, { stream: true });
     // A CR at the end of a chunk may be half of a CRLF; wait for the next chunk to tell.
-    const held = buffer.endsWith("\r") ? "\r" : "";
-    const text = (held ? buffer.slice(0, -1) : buffer).replace(/\r\n?/g, "\n");
-    const blocks = text.split("\n\n");
-    buffer = blocks.pop()! + held;
-    for (const block of blocks) {
-      const data = block
-        .split("\n")
-        .filter((l) => l.startsWith("data:"))
-        .map((l) => l.slice(5).replace(/^ /, ""))
-        .join("\n");
-      if (data) yield data;
+    held = text.endsWith("\r") ? "\r" : "";
+    if (held) text = text.slice(0, -1);
+    const lines = text.replace(/\r\n?/g, "\n").split("\n");
+    lines[0] = line + lines[0];
+    line = lines.pop()!;
+    for (const l of lines) {
+      if (l.startsWith("data:")) data.push(l.slice(5).replace(/^ /, ""));
+      if (l !== "") continue;
+      // A blank line ends the event.
+      const joined = data.join("\n");
+      data = [];
+      if (joined) yield joined;
     }
   }
 }

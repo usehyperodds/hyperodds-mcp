@@ -15,6 +15,10 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   `elicitation/create` or `roots/list`, a method-not-found error. It also removes the `roots`,
   `sampling`, `elicitation` and `tasks` capabilities from the client's `initialize`. Before, a
   server could ask the client's model for text, the person for input or the client for its folders.
+- Size limits: the bridge stops reading an answer past 8 MB, JSON or event stream, and drops a
+  line from the client over 1 MB, each with a JSON-RPC error that says so. Before, either could
+  grow until the bridge ran out of memory. Event streams are also read in one pass, so a large
+  event no longer costs time in proportion to its size squared.
 
 ## [0.2.3] - 2026-11-26
 

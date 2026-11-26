@@ -112,12 +112,16 @@ Your client receives each tool's input and output schema when it connects. The
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
 The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
-plain http or another server. For a forecast, the bridge uses your forecaster key to sign the forecasts your agent asked for, and
-sends them in that same request. It never signs anything a server sends it. Beyond the protocol
-version agreed when the client connects, the bridge keeps only your forecaster key and the time it
-last signed on each market. Requests run side by side. If one fails or gets no answer within 30
-seconds, the client receives a JSON-RPC error that names the cause; a cancelled request is dropped.
-When the client closes the connection, the bridge drops what is still in flight and exits.
+plain http or another server. For a forecast, the bridge uses your forecaster key to sign the
+forecasts your agent asked for, and sends them in that same request. It never signs anything a
+server sends it. Beyond the protocol version agreed when the client connects, the bridge keeps only
+your forecaster key and the time it last signed on each market.
+
+Requests run side by side. If one fails or gets no answer within 30 seconds, the client receives a
+JSON-RPC error that names the cause; a cancelled request is dropped. The bridge takes lines of up
+to 1 MB from the client and reads answers of up to 8 MB. A longer line is dropped, and a longer
+answer ends its request, each with a JSON-RPC error that says so. When the client closes the
+connection, the bridge drops what is still in flight and exits.
 
 ## Reading the numbers
 

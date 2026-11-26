@@ -13,7 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
-import { Bridge } from "../dist/bridge.js";
+import { Bridge, MAX_ANSWER_BYTES } from "../dist/bridge.js";
 import { openKey } from "../dist/key.js";
 import { recover, standIn, TOOLS } from "./stand-in.js";
 import { TEST_ADDRESS as CHECKSUMMED, TEST_KEY } from "./vectors.js";
@@ -335,6 +335,43 @@ describe("bridge", () => {
     assert.deepEqual(h.logs, [
       "The client sent an answer to a request it never received; the bridge dropped it.",
     ]);
+  });
+
+  test("stops reading an answer past 8 MB, whatever its kind, and says so", async () => {
+    const why = "Hyperodds sent an answer over 8 MB, so the bridge stopped reading it.";
+    const big = "x".repeat(MAX_ANSWER_BYTES);
+    const answers = {
+      json: () => json({ jsonrpc: "2.0", id: 1, result: { big } }),
+      // Says how large it is before any of it is read.
+      declared: () =>
+        new Response(new ReadableStream({ pull() {} }), {
+          headers: { "content-type": "application/json", "content-length": String(MAX_ANSWER_BYTES + 1) },
+        }),
+      // One event that never ends.
+      event: () => stream(`data: {"jsonrpc":"2.0","id":1,"result":{"big":"${big}`, 200),
+      // Notifications that never stop, then the answer too late.
+      flood: () =>
+        stream(
+          `${'data: {"jsonrpc":"2.0","method":"notifications/message","params":{}}\n\n'.repeat(130_000)}data: {"jsonrpc":"2.0","id":1,"result":{}}\n\n`,
+          500,
+        ),
+    };
+    for (const [name, answer] of Object.entries(answers)) {
+      const h = harness(answer);
+      await h.send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+      const answered = h.out.filter((m) => m.id === 1);
+      assert.deepEqual(answered, [{ jsonrpc: "2.0", id: 1, error: { code: -32603, message: why } }], name);
+      assert.deepEqual(h.logs, [why], name);
+    }
+  });
+
+  test("reads a large event that arrives in many small chunks", async () => {
+    const big = "y".repeat(MAX_ANSWER_BYTES - 1000);
+    const h = harness((body) =>
+      stream(`data: ${JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { big } })}\r\n\r\n`, 4000),
+    );
+    await h.send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    assert.equal(h.out[0].result.big.length, big.length);
   });
 
   test("a batch goes out message by message, and each request is answered", async () => {
