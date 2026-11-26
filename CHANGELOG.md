@@ -5,6 +5,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-11-26
+
 ### Changed
 
 - The bridge no longer follows redirects. A reply that redirects is an error naming its HTTP
@@ -149,7 +151,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
-[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.4
 [0.2.3]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.3
 [0.2.2]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.2
 [0.2.1]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.1
