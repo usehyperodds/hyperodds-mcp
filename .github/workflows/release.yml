@@ -80,8 +80,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: GitHub release from the changelog entry, with the extension and its SHA-256
         run: |
-          # shellcheck disable=SC2016 # the backticks are Markdown
           sha=$(sha256sum release/hyperodds.mcpb | cut -d ' ' -f 1)
+          # shellcheck disable=SC2016 # the backticks are Markdown
           printf '\n`hyperodds.mcpb` SHA-256: `%s`. To verify that GitHub Actions built it in this repository, run\n`gh attestation verify hyperodds.mcpb --repo %s`.\n' \
             "$sha" "$GITHUB_REPOSITORY" >> release/notes.md
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
