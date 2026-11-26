@@ -353,7 +353,13 @@ export class Bridge {
     const id = `hyperodds-mcp-${++this.asks}`;
     const answer = new Promise<Message>((done, fail) => {
       this.asked.set(id, done);
-      signal.addEventListener("abort", () => fail(signal.reason), { once: true });
+      // The tool call is gone, so the question goes too.
+      const withdraw = () => {
+        this.opts.write({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: id } });
+        fail(signal.reason);
+      };
+      if (signal.aborted) withdraw();
+      else signal.addEventListener("abort", withdraw, { once: true });
     });
     const lines = entries.map((e) => `- outcome ${e.outcome}: ${e.probabilityBps / 100}%`);
     const count = entries.length === 1 ? "this forecast" : `these ${entries.length} forecasts`;

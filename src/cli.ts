@@ -114,8 +114,7 @@ const bridge = new Bridge({
 if (process.stdin.isTTY)
   log(`Waiting for an MCP client on stdin, forwarding to ${shown}. Run with --help for usage.`);
 
-// The server takes 256 KB a message, so a line four times that is never one, and the bridge won't
-// hold it.
+// The server takes 256 KB a message, so a line of 1 MB is never one, and the bridge won't hold it.
 const MAX_LINE_BYTES = 1_000_000;
 const tooLong = () => {
   log("The client sent a line over 1 MB; the bridge dropped it.");

@@ -1025,6 +1025,11 @@ describe("forecasts signed on this computer", () => {
         JSON.stringify({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 3 } }),
       );
       await h.bridge.idle();
+      assert.deepEqual(h.out.at(-1), {
+        jsonrpc: "2.0",
+        method: "notifications/cancelled",
+        params: { requestId: "hyperodds-mcp-2" },
+      });
       h.reply({ id: "hyperodds-mcp-2", result: { action: "accept" } });
       assert.equal(h.out.filter((m) => m.id === 3).length, 0);
       assert.equal(h.server.recorded.length, 1);
