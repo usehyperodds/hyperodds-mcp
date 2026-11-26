@@ -74,7 +74,7 @@ jobs:
           if npm view "@hyperodds/mcp@$version" version > /dev/null 2>&1; then
             echo "@hyperodds/mcp@$version is already on npm."
           else
-            npm publish "release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts
+            npm publish "./release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
