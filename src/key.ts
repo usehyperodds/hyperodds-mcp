@@ -131,7 +131,7 @@ export function prepareFolder(dir: string): void {
 }
 
 // A link would let whoever can change it choose the key, and a dangling one would read as no key
-// at all, so forecasts would leave unsigned. Without O_NONBLOCK, opening a FIFO would wait for a
+// at all, so forecasts would go out unsigned. Without O_NONBLOCK, opening a FIFO would wait for a
 // writer that may never come.
 export const READ = posix ? constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK : "r";
 // A key is saved under a name starting with this, then linked into place.
@@ -238,7 +238,7 @@ export function openKey(source: KeySource, create: boolean): Signer | null {
 
   const dir = dirname(path);
   // With create off too: a linked folder that leads nowhere would read as no key, so forecasts
-  // would leave unsigned.
+  // would go out unsigned.
   checkLinks(dir);
   if (!create) return null;
   prepareFolder(dir);

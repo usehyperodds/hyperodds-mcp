@@ -477,8 +477,8 @@ export class Bridge {
     const out = refusal ? { ...body, id: replyTo } : body;
     if (out.method !== undefined) {
       if (typeof out.method === "string" && out.id === undefined) this.opts.write(out);
-      // Only on a request's stream: answered there too, the bridge's own answers would let a server
-      // keep it busy for good.
+      // Declined only on a request's stream: answering requests on the standalone stream as well would
+      // let a server keep the bridge busy indefinitely.
       else if (replyTo !== null) this.decline(out);
       return undefined;
     }
@@ -632,8 +632,8 @@ async function bounded(body: ReadableStream<Uint8Array> | null, tooLarge: () => 
 }
 
 /**
- * The data of each event in a stream, which ends past MAX_ANSWER_BYTES, so no event, or event not
- * yet ended, is larger. Each chunk is scanned once.
+ * Yields each event's data from a stream, and throws once the stream passes MAX_ANSWER_BYTES, which
+ * also bounds any single event, finished or not. Each chunk is scanned once.
  */
 async function* eventData(body: ReadableStream<Uint8Array>, tooLarge: () => Error): AsyncGenerator<string> {
   const decoder = new TextDecoder();
