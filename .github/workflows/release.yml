@@ -10,8 +10,7 @@ permissions:
 # The build job runs the repository's and the dependencies' code with a token that can only read.
 # The publish job holds write access and the OIDC token npm takes in place of a stored one (trusted
 # publishing, set up for this workflow on npmjs.com), and runs nothing from the repository: it
-# stages what the build job packed. npm lets this workflow stage a version, never publish one; a
-# maintainer approves the staged version on npmjs.com with two-factor authentication.
+# publishes what the build job packed.
 jobs:
   build:
     name: test and pack the tag
@@ -66,10 +65,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - name: npm 11.21.3 or later, for staged publishing with an OIDC token
+      - name: npm 11.5.1 or later, the first to publish with an OIDC token
         run: |
           if ! node -e 'const [a, b, c] = process.argv[1].split(".").map(Number);
-            process.exit(a > 11 || (a === 11 && (b > 21 || (b === 21 && c >= 3))) ? 0 : 1)' "$(npm --version)"; then
+            process.exit(a > 11 || (a === 11 && (b > 5 || (b === 5 && c >= 1))) ? 0 : 1)' "$(npm --version)"; then
             npm install --global npm@11.21.3 --ignore-scripts
           fi
           npm --version
@@ -78,14 +77,13 @@ jobs:
         with:
           subject-path: release/hyperodds.mcpb
       # Publishing and the release skip what an earlier run of this tag did, so a failed run can be re-run.
-      - name: stage on npm for approval, unless this version is already published
+      - name: publish to npm, unless this version is already there
         run: |
           version="${GITHUB_REF_NAME#v}"
           if npm view "@hyperodds/mcp@$version" version > /dev/null 2>&1; then
             echo "@hyperodds/mcp@$version is already on npm."
-          elif ! npm stage publish "./release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts; then
-            # npm logs the OIDC exchange's answer at verbose level only, so it is in the debug log. A
-            # version staged by an earlier run is refused here too: approve or reject it on npmjs.com.
+          elif ! npm publish "./release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts; then
+            # npm logs the OIDC exchange's answer at verbose level only, so it is in the debug log.
             grep -h -i oidc ~/.npm/_logs/*-debug-0.log || true
             exit 1
           fi

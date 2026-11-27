@@ -52,8 +52,7 @@ its credentials, installs with `npm ci --ignore-scripts`, runs every check, conf
 `package.json`, and packs the npm package and the Claude Desktop extension, `hyperodds.mcpb`, with a
 token that can only read. The second holds write access and no npm token: npm takes the workflow's
 OIDC token instead (trusted publishing). It runs nothing from the repository: it attests the
-extension, stages the packed package on npm with provenance, so the package links back to the
+extension, publishes the packed package to npm with provenance, so the package links back to the
 commit and workflow that built it, and opens the GitHub release from the version's changelog entry,
-with the extension and its SHA-256. npm lets the workflow stage a version, never publish one: a
-maintainer approves the staged version on npmjs.com with two-factor authentication, and only then
-does it install. If a run fails partway, re-run it: it skips a version already published.
+with the extension and its SHA-256. If a run fails partway, re-run it: it skips what an earlier run
+already published.
