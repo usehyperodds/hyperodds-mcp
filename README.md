@@ -109,7 +109,7 @@ Your client receives each tool's input and output schema when it connects. The
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/diagram-dark.png">
-  <img alt="An MCP client talks to @hyperodds/mcp on your machine over stdio. The bridge forwards each message over HTTPS to api.usehyperodds.com/mcp, which answers from Hyperodds data built from Hyperliquid, Polymarket, Kalshi, Deribit, Bybit and Cboe." src="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/diagram-light.png">
+  <img alt="An MCP client talks to @hyperodds/mcp on your machine over stdio. The bridge forwards each message over HTTPS to api.usehyperodds.com/mcp, which answers from Hyperodds data built from Hyperliquid, Polymarket, Kalshi, Deribit and Bybit." src="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/diagram-light.png">
 </picture>
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
@@ -131,9 +131,10 @@ Prices are decimals from 0 to 1 for a market's first side, often Yes. Edges are 
 after every fee, including the fee Hyperliquid takes at settlement, for a $100 order: 2.9 means
 2.9¢ a share. An edge is null when $100 would not fill.
 
-Price markets take their fair line from Deribit, Bybit and Cboe option surfaces, or from realized
-volatility on Hyperliquid perps. Sports and events take theirs from matched Polymarket and Kalshi
-quotes. Fair lines are estimates: edge rankings only use lines with a `fairConfidence` of at least
+Price markets take their fair line from Deribit and Bybit option surfaces, moving toward realized
+volatility on the Hyperliquid perp in the last two hours before settlement; underlyings without
+listed options, such as stocks, indices and commodities, use that realized volatility alone. Sports
+and events take theirs from matched Polymarket and Kalshi quotes. Fair lines are estimates: edge rankings only use lines with a `fairConfidence` of at least
 0.5 and more than one source, so check both before acting on one.
 
 ## Forecasts
