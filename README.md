@@ -1,9 +1,4 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/banner-dark.png">
-    <img alt="Hyperodds MCP: HIP-4 market data for any MCP client" src="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/banner-light.png">
-  </picture>
-</p>
+# Hyperodds MCP
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@hyperodds/mcp"><img alt="npm" src="https://img.shields.io/npm/v/@hyperodds/mcp?color=176646&label=npm"></a>
