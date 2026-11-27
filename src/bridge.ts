@@ -109,6 +109,8 @@ const withArguments = (msg: Message, args: Json): Message => ({
   params: { ...msg.params, arguments: args },
 });
 
+const theseForecasts = (n: number) => (n === 1 ? "this forecast" : `these ${n} forecasts`);
+
 /** A message the bridge put together itself, to be reported as is. */
 class Failure extends Error {}
 
@@ -282,7 +284,11 @@ export class Bridge {
     } finally {
       if (!confirmed) this.signed -= entries.length;
     }
-    if (!confirmed) return toolError(id, "Nothing was entered: the person did not confirm these forecasts.");
+    if (!confirmed)
+      return toolError(
+        id,
+        `Nothing was entered: the person did not confirm ${theseForecasts(entries.length)}.`,
+      );
     return this.sign(msg, id, entries, signer, signal);
   }
 
@@ -362,15 +368,14 @@ export class Bridge {
       else signal.addEventListener("abort", withdraw, { once: true });
     });
     const lines = entries.map((e) => `- outcome ${e.outcome}: ${e.probabilityBps / 100}%`);
-    const [count, each] =
-      entries.length === 1 ? ["this forecast", "It is"] : [`these ${entries.length} forecasts`, "Each is"];
+    const each = entries.length === 1 ? "It is" : "Each is";
     this.opts.write({
       jsonrpc: "2.0",
       id,
       method: "elicitation/create",
       params: {
         message: [
-          `Sign and enter ${count} in Hyperodds' public record as forecaster ${forecaster}? ${each} the probability that the market's first side wins.`,
+          `Sign and enter ${theseForecasts(entries.length)} in Hyperodds' public record as forecaster ${forecaster}? ${each} the probability that the market's first side wins.`,
           ...lines,
         ].join("\n"),
         requestedSchema: { type: "object", properties: {} },

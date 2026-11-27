@@ -9,6 +9,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 - The confirmation for a single forecast reads "Sign and enter this forecast in Hyperodds' public
   record…? It is the probability…", where it said "Sign this forecast and enter them".
+- Declining a single forecast answers "the person did not confirm this forecast", where it said
+  "these forecasts".
 
 ## [0.2.4] - 2026-11-26
 

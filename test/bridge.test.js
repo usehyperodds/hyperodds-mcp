@@ -1003,7 +1003,7 @@ describe("forecasts signed on this computer", () => {
           id: 10 + i,
           result: {
             content: [
-              { type: "text", text: "Nothing was entered: the person did not confirm these forecasts." },
+              { type: "text", text: "Nothing was entered: the person did not confirm this forecast." },
             ],
             isError: true,
           },

@@ -133,7 +133,7 @@ describe("the official MCP SDK client", () => {
     assert.equal(declined.isError, true);
     assert.equal(
       declined.content[0].text,
-      "Nothing was entered: the person did not confirm these forecasts.",
+      "Nothing was entered: the person did not confirm these 2 forecasts.",
     );
     assert.equal(server.recorded.length, 2);
   });
