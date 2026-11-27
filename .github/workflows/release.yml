@@ -60,10 +60,11 @@ jobs:
         with:
           name: release
           path: release
+      # No registry-url: it would write an .npmrc with a placeholder token, which npm falls back to
+      # when the OIDC exchange fails, and the publish then fails as a 404 instead of saying why.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
       - name: npm 11.5.1 or later, the first to publish with an OIDC token
         run: |
           if ! node -e 'const [a, b, c] = process.argv[1].split(".").map(Number);
@@ -81,8 +82,10 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           if npm view "@hyperodds/mcp@$version" version > /dev/null 2>&1; then
             echo "@hyperodds/mcp@$version is already on npm."
-          else
-            npm publish "./release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts
+          elif ! npm publish "./release/hyperodds-mcp-$version.tgz" --provenance --access public --ignore-scripts; then
+            # npm logs the OIDC exchange's answer at verbose level only, so it is in the debug log.
+            grep -h -i oidc ~/.npm/_logs/*-debug-0.log || true
+            exit 1
           fi
       - name: GitHub release from the changelog entry, with the extension and its SHA-256
         run: |
