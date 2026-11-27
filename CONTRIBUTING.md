@@ -50,8 +50,9 @@ changelog's Unreleased entries under the new version in [CHANGELOG.md](CHANGELOG
 `vX.Y.Z` tag. The release workflow runs in two jobs. The first checks out the tag without keeping
 its credentials, installs with `npm ci --ignore-scripts`, runs every check, confirms the tag matches
 `package.json`, and packs the npm package and the Claude Desktop extension, `hyperodds.mcpb`, with a
-token that can only read. The second holds the npm token and write access, and runs nothing from the
-repository: it attests the extension, publishes the packed package to npm with provenance, so the
-package links back to the commit and workflow that built it, and opens the GitHub release from the
-version's changelog entry, with the extension and its SHA-256. If a run fails partway, re-run it: it
-skips what an earlier run already published.
+token that can only read. The second holds write access and no npm token: npm takes the workflow's
+OIDC token instead (trusted publishing). It runs nothing from the repository: it attests the
+extension, publishes the packed package to npm with provenance, so the package links back to the
+commit and workflow that built it, and opens the GitHub release from the version's changelog entry,
+with the extension and its SHA-256. If a run fails partway, re-run it: it skips what an earlier run
+already published.
