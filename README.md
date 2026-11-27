@@ -107,11 +107,6 @@ Your client receives each tool's input and output schema when it connects. The
 
 ## How it works
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/diagram-dark.png">
-  <img alt="An MCP client talks to @hyperodds/mcp on your machine over stdio. The bridge forwards each message over HTTPS to api.usehyperodds.com/mcp, which answers from Hyperodds data built from Hyperliquid, Polymarket, Kalshi, Deribit and Bybit." src="https://raw.githubusercontent.com/usehyperodds/hyperodds-mcp/main/assets/diagram-light.png">
-</picture>
-
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
 The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
 plain http or another server. For a forecast, the bridge uses your forecaster key to sign the
