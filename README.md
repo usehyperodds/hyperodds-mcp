@@ -45,7 +45,7 @@ Cursor (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) or Windsurf:
   "mcpServers": {
     "hyperodds": {
       "command": "npx",
-      "args": ["-y", "@hyperodds/mcp@0.2.6"]
+      "args": ["-y", "@hyperodds/mcp@0.2.7"]
     }
   }
 }
@@ -54,7 +54,7 @@ Cursor (`~/.cursor/mcp.json`, or `.cursor/mcp.json` in one project) or Windsurf:
 Claude Code:
 
 ```sh
-claude mcp add hyperodds -- npx -y @hyperodds/mcp@0.2.6
+claude mcp add hyperodds -- npx -y @hyperodds/mcp@0.2.7
 ```
 
 VS Code (`.vscode/mcp.json`):
@@ -62,7 +62,7 @@ VS Code (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
-    "hyperodds": { "type": "stdio", "command": "npx", "args": ["-y", "@hyperodds/mcp@0.2.6"] }
+    "hyperodds": { "type": "stdio", "command": "npx", "args": ["-y", "@hyperodds/mcp@0.2.7"] }
   }
 }
 ```
@@ -238,7 +238,7 @@ error that names it.
 The bridge forwards each message from your client to `api.usehyperodds.com`. That includes the
 arguments of every tool call, such as the text of a search, and the name and version your client
 reports when it connects. Each request also carries a user agent with the bridge and Node.js
-versions, such as `hyperodds-mcp/0.2.6 node/24.22.0`. Requests pass through Cloudflare on their way
+versions, such as `hyperodds-mcp/0.2.7 node/24.22.0`. Requests pass through Cloudflare on their way
 to our hosting provider.
 
 The bridge passes your client no requests from the server, so a server can't ask your client's
@@ -281,7 +281,7 @@ it until you fix the setting and restart the bridge; the market tools work meanw
 ```json
 {
   "command": "npx",
-  "args": ["-y", "@hyperodds/mcp@0.2.6"],
+  "args": ["-y", "@hyperodds/mcp@0.2.7"],
   "env": { "HYPERODDS_FORECAST_SIGNING": "off" }
 }
 ```
@@ -303,7 +303,7 @@ proxy you trust, or remove the token from your npm config.
 The extension turns on Node.js proxy support itself, so it uses a proxy its host passes in
 `HTTPS_PROXY`. It has no proxy setting of its own; for any other proxy, add the bridge by hand.
 
-`npx -y @hyperodds/mcp@0.2.6 --help` and `--version` print the usage and the version.
+`npx -y @hyperodds/mcp@0.2.7 --help` and `--version` print the usage and the version.
 
 ## Development
 

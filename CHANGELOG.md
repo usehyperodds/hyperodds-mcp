@@ -5,6 +5,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-27
+
 ### Changed
 
 - Forecasts are signed as message version 2 of the forecast record's spec: each forecast names its
@@ -13,6 +15,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
   daily limit for market tools, and the confirmation shows them beside each probability. Hyperodds
   is retiring version 1, which named markets by number only, so earlier versions of the bridge will
   stop entering forecasts.
+- Releases publish to npm with npm's trusted publishing: the release workflow's own OIDC token takes
+  the place of a stored npm token, which no longer exists.
 
 ## [0.2.6] - 2026-11-27
 
@@ -180,7 +184,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
-[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.7
 [0.2.6]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.6
 [0.2.5]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.5
 [0.2.4]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.4
