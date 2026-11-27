@@ -35,7 +35,7 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - Errors the client sees write your home folder as `~`, or `$HOME` inside a command to run, so
   the model never sees your user name. The server log keeps the full path.
 - The README's client entries pin the release, and say how to follow `@latest` instead. The README
-  and SECURITY.md now say plainly what removing `HYPERODDS_FORECAST_KEY` from the bridge's
+  and SECURITY.md now say what removing `HYPERODDS_FORECAST_KEY` from the bridge's
   environment does not do: the key stays in the client's config and in the environment the
   operating system recorded when the bridge started.
 - Releases publish in two jobs: one that checks out the tag without keeping its credentials,
