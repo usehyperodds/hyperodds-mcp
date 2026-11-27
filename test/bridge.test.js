@@ -19,7 +19,7 @@ import { dirname, join } from "node:path";
 import { after, describe, test } from "node:test";
 import { Bridge, MAX_ANSWER_BYTES } from "../dist/bridge.js";
 import { openKey } from "../dist/key.js";
-import { recover, standIn, TOOLS } from "./stand-in.js";
+import { marketOf, recover, standIn, TOOLS } from "./stand-in.js";
 import { TEST_ADDRESS as CHECKSUMMED, TEST_KEY } from "./vectors.js";
 
 function json(body, status = 200, headers = {}) {
@@ -41,11 +41,18 @@ function stream(text, chunks = 1) {
   return new Response(body, { headers: { "content-type": "text/event-stream" } });
 }
 
-/** A bridge whose server is `handle`; it records what the bridge wrote, logged and sent. */
+/** The bridge's own reads of a market's names, which go out beside the call they serve. */
+const isRead = (body) => typeof body.id === "string" && body.id.startsWith("hyperodds-mcp-read-");
+
+/**
+ * A bridge whose server is `handle`; it records what the bridge wrote, logged and sent, with its own
+ * reads of market names kept apart in `reads`.
+ */
 function harness(handle, timeoutMs, label = "Hyperodds", more = {}) {
   const out = [];
   const logs = [];
   const sent = [];
+  const reads = [];
   const bridge = new Bridge({
     url: "https://mcp.test/mcp",
     label,
@@ -57,7 +64,7 @@ function harness(handle, timeoutMs, label = "Hyperodds", more = {}) {
     // Like fetch, it gives up as soon as the signal aborts, whatever the server is doing.
     fetch: async (url, init) => {
       const body = JSON.parse(init.body);
-      sent.push({ url, headers: init.headers, body, redirect: init.redirect });
+      (isRead(body) ? reads : sent).push({ url, headers: init.headers, body, redirect: init.redirect });
       return new Promise((done, fail) => {
         if (init.signal.aborted) return fail(init.signal.reason);
         init.signal.addEventListener("abort", () => fail(init.signal.reason), { once: true });
@@ -71,8 +78,17 @@ function harness(handle, timeoutMs, label = "Hyperodds", more = {}) {
     for (const l of lines) bridge.receive(typeof l === "string" ? l : JSON.stringify(l));
     await bridge.idle();
   };
-  return { bridge, out, logs, sent, send };
+  return { bridge, out, logs, sent, reads, send };
 }
+
+/** Answers the bridge's reads of market names as the stand-in does, and everything else with `handle`. */
+const withNames = (handle) => {
+  const names = standIn();
+  return (body) => (isRead(body) ? json(names.answer(body)) : handle(body));
+};
+
+/** Gives the bridge's reads time to come back. */
+const reads = () => new Promise((r) => setTimeout(r, 20));
 
 const initialize = {
   jsonrpc: "2.0",
@@ -455,6 +471,11 @@ describe("forecasts signed on this computer", () => {
       result.structuredContent.forecasts.map(({ outcome, probabilityBps }) => ({ outcome, probabilityBps })),
       ten,
     );
+    // Each market's title and first side come from odds_fair, one read per outcome, before signing.
+    assert.deepEqual(
+      h.reads.map((r) => [r.body.params.name, r.body.params.arguments]),
+      ten.map(({ outcome }) => ["odds_fair", { outcome }]),
+    );
     assert.equal(result.content.length, 2);
     assert.equal(
       result.content[1].text,
@@ -469,7 +490,15 @@ describe("forecasts signed on this computer", () => {
     const { signed } = submission.params.arguments;
     assert.deepEqual(Object.keys(signed).sort(), ["message", "signature", "type"]);
     assert.equal(signed.type, "ForecastBatch");
-    assert.deepEqual(signed.message.forecasts, ten);
+    assert.deepEqual(
+      signed.message.forecasts,
+      ten.map(({ outcome, probabilityBps }) => ({
+        outcome,
+        market: marketOf(outcome).title,
+        side: "Yes",
+        probabilityBps,
+      })),
+    );
     assert.equal(signed.message.forecaster, forecaster);
     assert.ok(signed.message.time >= before && signed.message.time <= Math.ceil(Date.now() / 1000));
     assert.equal(recover(signed.type, signed.message, signed.signature), forecaster);
@@ -748,7 +777,7 @@ describe("forecasts signed on this computer", () => {
     };
     const path = join(work, String(++homes), "forecaster.key");
     const h = harness(
-      (body) => json({ jsonrpc: "2.0", id: body.id, result: closed }),
+      withNames((body) => json({ jsonrpc: "2.0", id: body.id, result: closed })),
       undefined,
       "Hyperodds",
       {
@@ -809,7 +838,7 @@ describe("forecasts signed on this computer", () => {
       isError: true,
     };
     const h = harness(
-      (body) => json({ jsonrpc: "2.0", id: body.id, result: refusal }),
+      withNames((body) => json({ jsonrpc: "2.0", id: body.id, result: refusal })),
       undefined,
       "Hyperodds",
       {
@@ -835,7 +864,7 @@ describe("forecasts signed on this computer", () => {
       isError: true,
     };
     const h = harness(
-      (body) => json({ jsonrpc: "2.0", id: body.id, result: closed }),
+      withNames((body) => json({ jsonrpc: "2.0", id: body.id, result: closed })),
       undefined,
       "Hyperodds",
       {
@@ -885,6 +914,99 @@ describe("forecasts signed on this computer", () => {
     assert.equal(h.out.at(-1).result.structuredContent.status, "recorded");
   });
 
+  test("signs each market's title and first side as odds_fair gives them, and enters nothing when a read fails", async () => {
+    // Two forecasts on one market read its names once; the server refuses the duplicate itself.
+    const h = signing({}, { env: TEST_KEY });
+    await h.call(1, "odds_forecast", { forecasts: [ten[0], ten[1], { ...ten[0], probabilityBps: 4000 }] });
+    assert.deepEqual(
+      h.reads.map((r) => r.body.params.arguments.outcome),
+      [ten[0].outcome, ten[1].outcome],
+    );
+    const { forecasts } = h.sent[0].body.params.arguments.signed.message;
+    assert.deepEqual(
+      forecasts.map((f) => [f.market, f.side]),
+      [ten[0], ten[1], ten[0]].map(({ outcome }) => [marketOf(outcome).title, "Yes"]),
+    );
+
+    const failed = (outcome, why) =>
+      `Nothing was entered: the bridge reads each market's title and first side from Hyperodds to sign them with the forecast, and reading outcome ${outcome} failed: ${why}`;
+    const cases = [
+      [
+        { isError: true, content: [{ type: "text", text: "No market with outcome id 42401." }] },
+        "No market with outcome id 42401.",
+      ],
+      [
+        { structuredContent: { outcome: 1, title: "Another market", sides: ["Yes", "No"] } },
+        "the answer named no such market.",
+      ],
+      [
+        { structuredContent: { outcome: 42401, title: "A market", sides: [] } },
+        "the answer named no such market.",
+      ],
+    ];
+    for (const [answer, why] of cases) {
+      const r = harness(
+        (body) =>
+          isRead(body) && body.params.arguments.outcome === 42401
+            ? json({ jsonrpc: "2.0", id: body.id, result: answer })
+            : json(standIn().answer(body)),
+        undefined,
+        "Hyperodds",
+        {
+          keys: { env: TEST_KEY, path: join(work, String(++homes), "forecaster.key"), log: () => {} },
+          forecastLimit: 2,
+        },
+      );
+      const call = (id, forecasts) => ({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "odds_forecast", arguments: { forecasts } },
+      });
+      await r.send(call(1, ten.slice(0, 2)));
+      assert.deepEqual(r.out[0].result, {
+        content: [{ type: "text", text: failed(42401, why) }],
+        isError: true,
+      });
+      assert.equal(r.sent.length, 0);
+      // The refused call gave its place under the session limit back.
+      await r.send(call(2, [ten[0], ten[2]]));
+      assert.equal(r.out[1].result.structuredContent.status, "recorded");
+    }
+  });
+
+  test("waits out the server's burst limit while it reads names, then signs", async () => {
+    let limited = 2;
+    const server = standIn();
+    const h = harness(
+      (body) =>
+        isRead(body) && limited-- > 0
+          ? json({ jsonrpc: "2.0", id: body.id, error: { code: -32028, message: "Too many requests." } }, 429)
+          : json(server.answer(body)),
+      undefined,
+      "Hyperodds",
+      { keys: { env: TEST_KEY, path: join(work, String(++homes), "forecaster.key"), log: () => {} } },
+    );
+    await h.send({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "odds_forecast", arguments: { forecasts: ten.slice(0, 1) } },
+    });
+    assert.equal(h.reads.length, 3);
+    assert.equal(h.out[0].result.structuredContent.status, "recorded");
+
+    // A third refusal in a row is the answer.
+    limited = 3;
+    await h.send({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "odds_forecast", arguments: { forecasts: ten.slice(1, 2) } },
+    });
+    assert.match(h.out[1].result.content[0].text, /reading outcome 42401 failed: Too many requests\.$/);
+  });
+
   test("signs at most the session's limit, and a refusal gives its place back", async () => {
     const h = signing({}, {}, { forecastLimit: 15 });
     const five = ten.slice(0, 5).map((e) => ({ ...e, probabilityBps: 5000 }));
@@ -923,7 +1045,7 @@ describe("forecasts signed on this computer", () => {
       isError: true,
     };
     const r = harness(
-      (body) => json({ jsonrpc: "2.0", id: body.id, result: closed }),
+      withNames((body) => json({ jsonrpc: "2.0", id: body.id, result: closed })),
       undefined,
       "Hyperodds",
       {
@@ -963,6 +1085,7 @@ describe("forecasts signed on this computer", () => {
     test("asks the person to confirm the forecasts, and signs them on a yes", async () => {
       const h = await confirming();
       h.ask(2, [...one, { outcome: 42501, probabilityBps: 1 }]);
+      await reads();
       assert.equal(h.sent.length, 1);
       assert.deepEqual(h.out, [
         {
@@ -970,7 +1093,7 @@ describe("forecasts signed on this computer", () => {
           id: "hyperodds-mcp-1",
           method: "elicitation/create",
           params: {
-            message: `Sign and enter these 2 forecasts in Hyperodds' public record as forecaster ${TEST_ADDRESS}? Each is the probability that the market's first side wins.\n- outcome 42400: 62.5%\n- outcome 42501: 0.01%`,
+            message: `Sign and enter these 2 forecasts in Hyperodds' public record as forecaster ${TEST_ADDRESS}? Each is the probability that the side named wins.\n- "BTC above 42400 on Nov 22 at 06:00 UTC", "Yes": 62.5% (outcome 42400)\n- "BTC above 42501 on Nov 22 at 06:00 UTC", "Yes": 0.01% (outcome 42501)`,
             requestedSchema: { type: "object", properties: {} },
           },
         },
@@ -992,9 +1115,10 @@ describe("forecasts signed on this computer", () => {
       ];
       for (const [i, answer] of answers.entries()) {
         h.ask(10 + i, one);
+        await reads();
         assert.equal(
           h.out.at(-1).params.message,
-          `Sign and enter this forecast in Hyperodds' public record as forecaster ${TEST_ADDRESS}? It is the probability that the market's first side wins.\n- outcome 42400: 62.5%`,
+          `Sign and enter this forecast in Hyperodds' public record as forecaster ${TEST_ADDRESS}? It is the probability that the side named wins.\n- "BTC above 42400 on Nov 22 at 06:00 UTC", "Yes": 62.5% (outcome 42400)`,
         );
         h.reply({ id: `hyperodds-mcp-${i + 1}`, ...answer });
         await h.bridge.idle();
@@ -1011,6 +1135,7 @@ describe("forecasts signed on this computer", () => {
       }
       assert.equal(h.sent.length, 1);
       h.ask(20, one);
+      await reads();
       h.reply({ id: "hyperodds-mcp-4", result: { action: "accept" } });
       await h.bridge.idle();
       assert.equal(h.out.at(-1).result.structuredContent.status, "recorded");
@@ -1025,6 +1150,7 @@ describe("forecasts signed on this computer", () => {
       assert.equal(h.out.at(-1).result.structuredContent.status, "recorded");
 
       h.ask(3, one);
+      await reads();
       h.bridge.receive(
         JSON.stringify({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 3 } }),
       );

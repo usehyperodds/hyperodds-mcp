@@ -8,7 +8,18 @@
  */
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { checkArguments, checkEntries, digest, type Entry, EntryError, forecastMessage } from "./forecast.js";
+import { setTimeout as delay } from "node:timers/promises";
+import {
+  checkArguments,
+  checkEntries,
+  digest,
+  type Entry,
+  EntryError,
+  forecastMessage,
+  type Named,
+  type Names,
+  namesFrom,
+} from "./forecast.js";
 import { type KeySource, openKey, type Signer } from "./key.js";
 import { SignedTimes } from "./times.js";
 
@@ -61,6 +72,8 @@ const PARSE_ERROR = -32700;
 const INVALID_REQUEST = -32600;
 const METHOD_NOT_FOUND = -32601;
 const INTERNAL_ERROR = -32603;
+/** The server's answer to a request past its burst limit. */
+const RATE_LIMITED = -32028;
 
 /** The most of one answer the bridge reads, JSON or event stream. The server's are far smaller. */
 export const MAX_ANSWER_BYTES = 8_000_000;
@@ -132,6 +145,8 @@ export class Bridge {
   /** The bridge's own requests to the client, by id. */
   private readonly asked = new Map<Id, (answer: Message) => void>();
   private asks = 0;
+  /** The bridge's own reads from the server, for the names a forecast signs. */
+  private reads = 0;
 
   constructor(private readonly opts: BridgeOptions) {
     this.timeoutMs = opts.timeoutMs ?? 30_000;
@@ -296,24 +311,71 @@ export class Bridge {
         `Nothing was entered. This bridge signs at most ${limit} forecasts a session, and has signed ${this.signed} since your client started it.${left > 0 ? ` It can sign ${left} more.` : ""} A new session starts when the client restarts the bridge; HYPERODDS_FORECAST_LIMIT sets the limit.`,
       );
     }
-    // Held while the person decides, so calls side by side can't pass the limit together.
+    // Held while the names are read and the person decides, so calls side by side can't pass the
+    // limit together.
     this.signed += entries.length;
+    let named: Named[] | string = [];
     let confirmed = false;
     try {
-      confirmed = !this.confirms || (await this.confirm(entries, signer.address, signal));
+      named = await this.names(entries, signal);
+      if (typeof named !== "string")
+        confirmed = !this.confirms || (await this.confirm(named, signer.address, signal));
     } finally {
       if (!confirmed) this.signed -= entries.length;
     }
+    if (typeof named === "string") return toolError(id, named);
     if (!confirmed)
       return toolError(
         id,
         `Nothing was entered: the person did not confirm ${theseForecasts(entries.length)}.`,
       );
-    return this.sign(msg, id, entries, signer, signal);
+    return this.sign(msg, id, named, signer, signal);
+  }
+
+  /**
+   * Each forecast's market title and first side, which the message signs, from the server's
+   * odds_fair for its outcome: the server refuses a forecast whose names aren't the market's. Read
+   * one at a time, inside the server's burst limit. A string is the refusal when a read fails.
+   */
+  private async names(entries: Entry[], signal: AbortSignal): Promise<Named[] | string> {
+    const read = new Map<number, Names | string>();
+    const named: Named[] = [];
+    for (const { outcome, probabilityBps } of entries) {
+      let names = read.get(outcome);
+      if (names === undefined) {
+        names = await this.marketNames(outcome, signal);
+        read.set(outcome, names);
+      }
+      if (typeof names === "string") return names;
+      named.push({ outcome, ...names, probabilityBps });
+    }
+    return named;
+  }
+
+  private async marketNames(outcome: number, signal: AbortSignal): Promise<Names | string> {
+    const failed = (why: string) =>
+      `Nothing was entered: the bridge reads each market's title and first side from ${this.opts.label} to sign them with the forecast, and reading outcome ${outcome} failed: ${why}`;
+    for (let tries = 1; ; tries++) {
+      const id = `hyperodds-mcp-read-${++this.reads}`;
+      const answer = await this.send(
+        { jsonrpc: "2.0", id, method: "tools/call", params: { name: "odds_fair", arguments: { outcome } } },
+        id,
+        signal,
+      );
+      const error = isRecord(answer?.error) ? answer.error : undefined;
+      if (error?.code === RATE_LIMITED && tries < 3) {
+        await delay(1000, undefined, { signal });
+        continue;
+      }
+      if (error) return failed(errorText(error.message));
+      const result = answer?.result;
+      if (result?.isError) return failed(errorText(firstText(result.content)));
+      return namesFrom(result?.structuredContent, outcome) ?? failed("the answer named no such market.");
+    }
   }
 
   /** Signs the forecasts and sends them. A refusal gives back their place under the session limit. */
-  private async sign(msg: Message, id: Id, entries: Entry[], signer: Signer, signal: AbortSignal) {
+  private async sign(msg: Message, id: Id, entries: Named[], signer: Signer, signal: AbortSignal) {
     const nowMs = (this.opts.now ?? Date.now)();
     const outcomes = entries.map((e) => e.outcome);
     const times = this.times!;
@@ -375,7 +437,7 @@ export class Bridge {
    * accept, an error included, is a no. The wait counts toward no time limit, since a person is
    * deciding; cancelling the tool call ends it.
    */
-  private async confirm(entries: Entry[], forecaster: string, signal: AbortSignal): Promise<boolean> {
+  private async confirm(entries: Named[], forecaster: string, signal: AbortSignal): Promise<boolean> {
     const id = `hyperodds-mcp-${++this.asks}`;
     const answer = new Promise<Message>((done, fail) => {
       this.asked.set(id, done);
@@ -387,7 +449,11 @@ export class Bridge {
       if (signal.aborted) withdraw();
       else signal.addEventListener("abort", withdraw, { once: true });
     });
-    const lines = entries.map((e) => `- outcome ${e.outcome}: ${e.probabilityBps / 100}%`);
+    // Quoted as JSON: the names are the deployer's text, and must read as one line each.
+    const lines = entries.map(
+      (e) =>
+        `- ${JSON.stringify(e.market)}, ${JSON.stringify(e.side)}: ${e.probabilityBps / 100}% (outcome ${e.outcome})`,
+    );
     const each = entries.length === 1 ? "It is" : "Each is";
     this.opts.write({
       jsonrpc: "2.0",
@@ -395,7 +461,7 @@ export class Bridge {
       method: "elicitation/create",
       params: {
         message: [
-          `Sign and enter ${theseForecasts(entries.length)} in Hyperodds' public record as forecaster ${forecaster}? ${each} the probability that the market's first side wins.`,
+          `Sign and enter ${theseForecasts(entries.length)} in Hyperodds' public record as forecaster ${forecaster}? ${each} the probability that the side named wins.`,
           ...lines,
         ].join("\n"),
         requestedSchema: { type: "object", properties: {} },
@@ -633,6 +699,18 @@ function clockText(signedS: number, serverMs: number): string {
   const size =
     Math.abs(gapS) < 120 ? `${Math.abs(gapS)} seconds` : `${Math.round(Math.abs(gapS) / 60)} minutes`;
   return `Hyperodds refused the forecasts: this computer's clock is about ${size} ${gapS > 0 ? "ahead" : "behind"}. ${fix}`;
+}
+
+/** A server's error text in a sentence of the bridge's, on one line and at most 300 characters. */
+function errorText(text: unknown): string {
+  const line = typeof text === "string" ? text.replace(/\s+/g, " ").trim() : "";
+  if (!line) return "no reason was given.";
+  return line.length > 300 ? `${line.slice(0, 299)}…` : line;
+}
+
+function firstText(content: unknown): unknown {
+  const first = Array.isArray(content) ? content.find((c) => isRecord(c) && c.type === "text") : undefined;
+  return isRecord(first) ? first.text : undefined;
 }
 
 function failureText(error: unknown, opts: BridgeOptions): string {

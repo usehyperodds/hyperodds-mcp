@@ -5,6 +5,15 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- Forecasts are signed as message version 2 of the forecast record's spec: each forecast names its
+  market's title and first side, under a domain salted for Hyperodds' mainnet record. Before it
+  signs, the bridge reads those names with `odds_fair`, one call per market, which counts toward the
+  daily limit for market tools, and the confirmation shows them beside each probability. Hyperodds
+  is retiring version 1, which named markets by number only, so earlier versions of the bridge will
+  stop entering forecasts.
+
 ## [0.2.6] - 2026-11-27
 
 ### Fixed

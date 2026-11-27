@@ -104,10 +104,12 @@ Your client receives each tool's input and output schema when it connects. The
 
 Each message from the client goes out as one HTTPS request, and its response comes straight back.
 The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
-plain http or another server. For a forecast, the bridge uses your forecaster key to sign the
-forecasts your agent asked for, and sends them in that same request. It never signs anything a
-server sends it. The bridge keeps only your forecaster key, the time it last signed on each market,
-the protocol version and capabilities your client reported, and a count of forecasts signed since.
+plain http or another server. For a forecast, the bridge first reads each market's title and first
+side with `odds_fair`, then uses your forecaster key to sign the forecasts your agent asked for with
+those names, and sends them in the request your agent made. It builds the signed message itself and
+never signs typed data a server sends it. The bridge keeps only your forecaster key, the time it
+last signed on each market, the protocol version and capabilities your client reported, and a count
+of forecasts signed since.
 
 Requests run side by side. If one fails or gets no answer within 30 seconds, the client receives a
 JSON-RPC error that names the cause; a cancelled request is dropped. The bridge takes lines of up
@@ -139,11 +141,13 @@ score, the squared distance between the forecast and the result, where lower is 
 beat the fair line.
 
 Entries close an hour before each market's cutoff, and one call takes up to 50 markets whose cutoffs
-fall on the same UTC day. If you forecast a market again, the forecast signed latest is the one
-scored; earlier ones stay in the record. The bridge signs each forecast at least a second after its
-last one on the same market, so a quick revision still counts. It keeps those times in
-`forecast-times.json`, in the folder of the key it makes, whichever key it signs with. The record
-itself pays no prizes.
+fall on the same UTC day. Each signed forecast names its market's title and first side, so the
+signature shows what was forecast, and Hyperodds refuses one whose names aren't the market's. A
+signature holds on Hyperodds' mainnet record only. If you forecast a market again, the forecast
+signed latest is the one scored; earlier ones stay in the record. The bridge signs each forecast at
+least a second after its last one on the same market, so a quick revision still counts. It keeps
+those times in `forecast-times.json`, in the folder of the key it makes, whichever key it signs
+with. The record itself pays no prizes.
 
 ### Your forecaster key
 
@@ -200,8 +204,8 @@ holds funds. To forecast as a wallet you already have, see
 With signing on, the bridge enters forecasts when your agent calls `odds_forecast`, after two
 checks of its own:
 - **It asks you first, if your client can.** When your client supports MCP elicitation forms, the
-  bridge shows you each call's outcome ids, probabilities and forecaster before it signs, and
-  enters nothing unless you accept. Otherwise your client's prompt to approve the tool call is the
+  bridge shows you each forecast's market title, side, probability and outcome id, and the
+  forecaster, before it signs, and enters nothing unless you accept. Otherwise your client's prompt to approve the tool call is the
   only confirmation, so keep approval on for `odds_forecast` if you want to see each forecast before
   it is entered.
 - **It signs at most 200 forecasts a session**, from when your client starts the bridge until it
@@ -222,7 +226,8 @@ link for that wallet.
 ## Limits
 
 Each IP address gets 1,000 calls to the market tools a day, reset at 00:00 UTC; the forecast tools
-don't count toward it. Every request, tool call or not, also counts toward a rate limit of 5 a
+don't count toward it, but the `odds_fair` read the bridge makes for each market before it signs
+does. Every request, tool call or not, also counts toward a rate limit of 5 a
 second, with bursts of up to 30. Forecasts have limits of their own: each forecaster can make 10
 forecast calls a minute and enter 1,000 forecasts a day, and an IP address 2,000 a day. With signing
 off, an IP address can ask for 600 sign links an hour. Past any limit, the server answers with an

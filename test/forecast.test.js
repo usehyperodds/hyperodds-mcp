@@ -4,32 +4,62 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import {
   checkArguments,
   checkEntries,
+  DOMAIN,
   DOMAIN_SEPARATOR,
   digest,
   forecastMessage,
+  namesFrom,
   TYPE_HASHES,
 } from "../dist/forecast.js";
-import { TEST_ADDRESS, vectors } from "./vectors.js";
+import { BTC, TEST_ADDRESS, vectors } from "./vectors.js";
 
 describe("forecast messages", () => {
   test("hash the spec's test vectors exactly", () => {
+    assert.equal(bytesToHex(DOMAIN.salt), "c39792a05cff7539d2e0315b8f48f8ba52d0d5633867ed004c25a66c4160eeb4");
     assert.equal(
       bytesToHex(DOMAIN_SEPARATOR),
-      "8c35fadb67824908e8f620e61384ee244830a28d798764768569090f3d929e37",
+      "12e0f52833f9791dcb35db09d561aacc84ec21766e497c7618c159a931379d43",
     );
     assert.equal(
       bytesToHex(TYPE_HASHES.Forecast),
-      "a8d516c0479c1166e3591b894d95ba27b4c73b848308820d52435e923bd368e6",
+      "f17e0807d1ad95830c7ed23f72a0c650744e9d7f4f2b66c28de313920555c836",
     );
     assert.equal(
       bytesToHex(TYPE_HASHES.ForecastBatch),
-      "ff5ca7ea63ac690bc636955ac4763383f2c84c4803111d26b74195eba18aa6f9",
+      "5445b9122c3debdb9e5817cea50eac968ca3861f9ad1195f83830640f7579970",
     );
     assert.equal(
       bytesToHex(TYPE_HASHES.ForecastEntry),
-      "36e1078a25cea9e34eff3e4b746daee80ce54e7d5b97256dbf173dade80130bc",
+      "b7b2fc97c148a7c38b4d821a7c4fabf1c9d2e7ff7d356597adab119bef4af363",
     );
     for (const v of vectors) assert.equal(bytesToHex(digest(v)), v.digest, v.type);
+  });
+
+  test("another market's title or side is another message", () => {
+    const [v] = vectors;
+    for (const change of [{ market: `${BTC.market} ` }, { side: "No" }])
+      assert.notEqual(bytesToHex(digest({ ...v, message: { ...v.message, ...change } })), v.digest);
+  });
+});
+
+describe("a market's names", () => {
+  const answer = { outcome: 42400, title: BTC.market, sides: ["Yes", "No"], fair: null };
+
+  test("are the title and the first side the server gives for that outcome", () => {
+    assert.deepEqual(namesFrom(answer, 42400), { market: BTC.market, side: "Yes" });
+  });
+
+  test("are none when the answer is for another outcome, or its names aren't text", () => {
+    const bad = {
+      "another outcome": [answer, 42401],
+      "no title": [{ ...answer, title: undefined }, 42400],
+      "an empty title": [{ ...answer, title: "" }, 42400],
+      "a title past 400 characters": [{ ...answer, title: "x".repeat(401) }, 42400],
+      "no sides": [{ ...answer, sides: [] }, 42400],
+      "a side that isn't text": [{ ...answer, sides: [1, "No"] }, 42400],
+      "no answer": [undefined, 42400],
+    };
+    for (const [name, [a, outcome]] of Object.entries(bad)) assert.equal(namesFrom(a, outcome), null, name);
   });
 });
 
@@ -37,7 +67,7 @@ describe("the message built for this computer's key", () => {
   const forecaster = TEST_ADDRESS.toLowerCase();
 
   test("is the spec's message for the forecasts asked for, at the time given, with a fresh nonce", () => {
-    const batch = forecastMessage(forecaster, checkEntries(vectors[1].message.forecasts), 1763719200);
+    const batch = forecastMessage(forecaster, vectors[1].message.forecasts, 1763719200);
     const { nonce, ...rest } = batch.message;
     assert.equal(batch.type, "ForecastBatch");
     assert.deepEqual(rest, { forecaster, forecasts: vectors[1].message.forecasts, time: 1763719200 });
@@ -50,31 +80,22 @@ describe("the message built for this computer's key", () => {
     };
     assert.equal(bytesToHex(digest(fixed)), vectors[1].digest);
 
-    const one = forecastMessage(
-      forecaster,
-      checkEntries([{ outcome: 42400, probabilityBps: 6200 }]),
-      1763719200,
-    );
+    const one = forecastMessage(forecaster, [{ ...BTC, probabilityBps: 6200 }], 1763719200);
     assert.equal(one.type, "Forecast");
     assert.deepEqual(Object.keys(one.message).sort(), [
       "forecaster",
+      "market",
       "nonce",
       "outcome",
       "probabilityBps",
+      "side",
       "time",
     ]);
 
     const nonces = new Set(
       Array.from(
         { length: 200 },
-        () =>
-          forecastMessage(
-            forecaster,
-            checkEntries([
-              { outcome: vectors[0].message.outcome, probabilityBps: vectors[0].message.probabilityBps },
-            ]),
-            1763719200,
-          ).message.nonce,
+        () => forecastMessage(forecaster, [{ ...BTC, probabilityBps: 6200 }], 1763719200).message.nonce,
       ),
     );
     assert.equal(nonces.size, 200);

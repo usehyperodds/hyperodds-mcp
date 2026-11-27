@@ -1,33 +1,35 @@
-// The test vectors in the forecast record's spec, under "EIP-712".
+// The test vectors in the forecast record's spec, under "EIP-712" (message version 2, mainnet).
 export const TEST_KEY = `0x${"0".repeat(63)}1`;
 export const TEST_ADDRESS = "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
+export const BTC = { outcome: 42400, market: "BTC above 55,765 on Nov 22 at 06:00 UTC", side: "Yes" };
+export const ETH = { outcome: 42501, market: "ETH above 3,000 on Nov 22 at 06:00 UTC", side: "Yes" };
 export const vectors = [
   {
     type: "Forecast",
     message: {
       forecaster: TEST_ADDRESS,
-      outcome: 42400,
+      ...BTC,
       probabilityBps: 6200,
       time: 1763719200,
       nonce: "1763719200000",
     },
-    digest: "9d68b0769b49c457471adea46b361ce9f832bb2e5bbf8199689d357766c9e754",
+    digest: "ae6aa9a3a6ef3b2fd8759906d59e200797d8aa2167778389e728d6ab282b5547",
     signature:
-      "0x4d8ddebb9cfe6cfcc6d870809f19364c56e134039c1200cf74004ce6aac7a1ed09c333b798001f1c2cd2d8aa37630592e3d5333abc30b6a479c0db8bd213cd651c",
+      "0xd16082f21b0a948afb6b6989797d76a8998907650777363ca2311c2912e5c5f3492b0b8d51db819b08f072e57e96d1f2533adc9c441b28bbbdde9f190926e4061c",
   },
   {
     type: "ForecastBatch",
     message: {
       forecaster: TEST_ADDRESS,
       forecasts: [
-        { outcome: 42400, probabilityBps: 6200 },
-        { outcome: 42501, probabilityBps: 3100 },
+        { ...BTC, probabilityBps: 6200 },
+        { ...ETH, probabilityBps: 3100 },
       ],
       time: 1763719200,
       nonce: "1763719200001",
     },
-    digest: "8628ebe750cec7b7704023cfeb8cbfde075fde486849a3ae9c8931fabc83c139",
+    digest: "46fc072d89b2ed1df1c1c97f00b9afb522deba6f8379065c0de10fcc759f7a6f",
     signature:
-      "0xf905beb040b0c94625daeb3318c3be48580ec010fec6400f70493dcd3e74c6165dd78927190c61761f03214a1b8a2d065b393ae106adf26edd0b359a2ba1bcd71b",
+      "0xc1188ccdbc21875662dbb6d048b5a2c6eb160cb54333574cbe91339b98aa59aa5666002a6f785cd2e948bb76d8f2e522c88a592b646ec876e0248ce4a1f45ee11b",
   },
 ];

@@ -1,6 +1,7 @@
 // The hosted server's forecast tools as the forecast record's spec fixes them: drafts, with typed
-// data when a forecaster is named; signed submissions, checked for a valid low-s signature, the
-// time window, nonce reuse and signed-time order; and each forecaster's pending count.
+// data when a forecaster is named; signed submissions (message version 2), checked for a valid
+// low-s signature, each market's title and first side, the time window, nonce reuse and signed-time
+// order; and each forecaster's pending count. odds_fair names any outcome but the unlisted ones.
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
@@ -38,6 +39,7 @@ const ENTRY_CODES = [
   "past_close",
   "past_cutoff",
   "out_of_order",
+  "market_mismatch",
 ];
 
 export const TOOLS = [
@@ -113,7 +115,18 @@ export const TOOLS = [
     },
   },
   { name: "odds_leaderboard", description: "Ranks forecasters.", inputSchema: { type: "object" } },
+  {
+    name: "odds_fair",
+    description: "Gives one market's fair line.",
+    inputSchema: { type: "object", properties: { outcome: { type: "integer" } }, required: ["outcome"] },
+  },
 ];
+
+/** A listed market's title and sides, as odds_fair gives them. */
+export const marketOf = (outcome) => ({
+  title: `BTC above ${outcome} on Nov 22 at 06:00 UTC`,
+  sides: ["Yes", "No"],
+});
 
 const ok = (data) => ({ content: [{ type: "text", text: JSON.stringify(data) }], structuredContent: data });
 
@@ -135,7 +148,12 @@ export function recover(type, message, signature) {
  * `now` is the stand-in's clock in milliseconds. `bareRefusals` answers refusals without their
  * status, as the server did before refusals had a shape its output schema accepts.
  */
-export function standIn({ web = "https://usehyperodds.com", now = Date.now, bareRefusals = false } = {}) {
+export function standIn({
+  web = "https://usehyperodds.com",
+  now = Date.now,
+  bareRefusals = false,
+  unlisted = [],
+} = {}) {
   const refusal = (code, error, entries = []) => ({
     content: [{ type: "text", text: error }],
     structuredContent: bareRefusals ? { code, entries } : { status: "refused", code, entries },
@@ -155,19 +173,24 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now, bare
     drafts.push(id);
     let typedData = null;
     if (forecaster) {
+      const named = forecasts.map(({ outcome, probabilityBps }) => {
+        const { title, sides } = marketOf(outcome);
+        return { outcome, market: title, side: sides[0], probabilityBps };
+      });
+      const domain = { ...DOMAIN, salt: `0x${bytesToHex(DOMAIN.salt)}` };
       typedData =
-        forecasts.length === 1
+        named.length === 1
           ? {
-              domain: DOMAIN,
+              domain,
               types: TYPES.Forecast,
               primaryType: "Forecast",
-              message: { forecaster, ...forecasts[0], time, nonce },
+              message: { forecaster, ...named[0], time, nonce },
             }
           : {
-              domain: DOMAIN,
+              domain,
               types: TYPES.ForecastBatch,
               primaryType: "ForecastBatch",
-              message: { forecaster, forecasts, time, nonce },
+              message: { forecaster, forecasts: named, time, nonce },
             };
     }
     return ok({
@@ -190,6 +213,20 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now, bare
     if (used.has(`${forecaster}:${message.nonce}`))
       return refusal("replayed", "This nonce was already used by this forecaster.");
     const entries = type === "Forecast" ? [message] : message.forecasts;
+    const named = (e) => e.market === marketOf(e.outcome).title && e.side === marketOf(e.outcome).sides[0];
+    const mismatched = entries
+      .map(({ outcome }, index) => ({ index, outcome }))
+      .filter((_, i) => !named(entries[i]));
+    if (mismatched.length > 0)
+      return refusal(
+        "entries_refused",
+        "The signed market or side isn't this market's.",
+        mismatched.map((e) => ({
+          ...e,
+          code: "market_mismatch",
+          error: "The signed market or side isn't this market's.",
+        })),
+      );
     const late = entries
       .map(({ outcome }, index) => ({ index, outcome }))
       .filter(({ outcome }) => message.time <= (latest.get(`${forecaster}:${outcome}`) ?? -1));
@@ -210,8 +247,21 @@ export function standIn({ web = "https://usehyperodds.com", now = Date.now, bare
     return ok({ status: "recorded", batch, forecaster, day: "2026-11-22", forecasts });
   }
 
+  function fair({ outcome }) {
+    if (unlisted.includes(outcome))
+      return { content: [{ type: "text", text: `No market with outcome id ${outcome}.` }], isError: true };
+    return ok({
+      untrusted: { note: "", fields: [] },
+      asOf: new Date(now()).toISOString(),
+      outcome,
+      ...marketOf(outcome),
+      fair: null,
+    });
+  }
+
   function call(name, args) {
     if (name === "odds_forecast") return args.signed ? submit(args.signed) : draft(args);
+    if (name === "odds_fair") return fair(args);
     if (name === "odds_forecast_record") {
       const forecaster = args.address.toLowerCase();
       return ok({

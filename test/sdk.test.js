@@ -10,7 +10,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { digest, forecastMessage } from "../dist/forecast.js";
 import { openKey } from "../dist/key.js";
-import { serve, standIn } from "./stand-in.js";
+import { marketOf, serve, standIn } from "./stand-in.js";
 
 const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 const work = mkdtempSync(join(tmpdir(), "hyperodds-mcp-sdk-test-"));
@@ -85,7 +85,12 @@ describe("the official MCP SDK client", () => {
     const server = standIn();
     const key = randomBytes(32).toString("hex");
     const other = openKey({ env: key, path: join(work, "unused"), log: () => {} }, false);
-    const ahead = forecastMessage(other.address, [two[0]], Math.floor(Date.now() / 1000) + 60);
+    const { title, sides } = marketOf(two[0].outcome);
+    const ahead = forecastMessage(
+      other.address,
+      [{ ...two[0], market: title, side: sides[0] }],
+      Math.floor(Date.now() / 1000) + 60,
+    );
     const signed = { ...ahead, signature: other.sign(digest(ahead)) };
     server.answer({
       jsonrpc: "2.0",
