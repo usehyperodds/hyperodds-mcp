@@ -254,20 +254,21 @@ describe("hyperodds-mcp", () => {
     assert.match(ftp.stderr, /must be an http or https URL/);
     assert.equal((await run("", { HYPERODDS_MCP_URL: "https://exa mple.com" })).code, 2);
     assert.equal((await run("", { HYPERODDS_MCP_URL: url.replace("http:", "HTTP:") })).code, 0);
+    // A wrong forecast setting turns forecasts off and leaves the bridge running.
     const signing = await run("", { HYPERODDS_FORECAST_SIGNING: "maybe" });
-    assert.equal(signing.code, 2);
+    assert.equal(signing.code, 0);
     assert.equal(
       signing.stderr,
-      "hyperodds-mcp: HYPERODDS_FORECAST_SIGNING must be on or off. Run with --help for usage.\n",
+      "hyperodds-mcp: HYPERODDS_FORECAST_SIGNING must be on or off. The bridge refuses forecasts until that is fixed; the market tools work as usual.\n",
     );
     for (const value of ["on", "OFF", "true", "false"])
       assert.equal((await run("", { HYPERODDS_FORECAST_SIGNING: value })).code, 0, value);
     for (const value of ["0", "-1", "2.5", "ten", "1000000"]) {
       const r = await run("", { HYPERODDS_FORECAST_LIMIT: value });
-      assert.equal(r.code, 2, value);
+      assert.equal(r.code, 0, value);
       assert.equal(
         r.stderr,
-        "hyperodds-mcp: HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999. Run with --help for usage.\n",
+        "hyperodds-mcp: HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999. The bridge refuses forecasts until that is fixed; the market tools work as usual.\n",
       );
     }
     for (const value of ["", "1", " 500 "])
@@ -326,7 +327,7 @@ describe("hyperodds-mcp", () => {
       );
       for (const bad of ["not a url", "ftp://example.com"]) {
         const r = await run("", { HYPERODDS_SITE_URL: bad });
-        assert.equal(r.code, 2, bad);
+        assert.equal(r.code, 0, bad);
         assert.match(r.stderr, /^hyperodds-mcp: HYPERODDS_SITE_URL /, bad);
         assert.ok(!r.stderr.includes(bad), bad);
       }
@@ -351,17 +352,29 @@ describe("hyperodds-mcp", () => {
       assert.equal(existsSync(join(home, "hyperodds", "forecaster.key")), false);
       assert.equal(r.stderr, "");
 
-      const relative = await run("", { HYPERODDS_FORECAST_KEY_FILE: "mine.key" });
-      assert.equal(relative.code, 2);
+      // A relative path refuses forecasts, with the reason, and the market tools still answer.
+      const relative = await session(
+        { HYPERODDS_MCP_URL: url, XDG_CONFIG_HOME: home, HYPERODDS_FORECAST_KEY_FILE: "mine.key" },
+        [forecast(1, { forecasts }), { jsonrpc: "2.0", id: 2, method: "tools/list" }],
+        2,
+      );
+      assert.equal(relative.code, 0);
       assert.equal(
         relative.stderr,
-        "hyperodds-mcp: HYPERODDS_FORECAST_KEY_FILE must be an absolute path. Run with --help for usage.\n",
+        "hyperodds-mcp: HYPERODDS_FORECAST_KEY_FILE must be an absolute path. The bridge refuses forecasts until that is fixed; the market tools work as usual.\n",
       );
+      assert.equal(relative.answers[1].result.isError, true);
+      assert.match(
+        relative.answers[1].result.content[0].text,
+        /^Nothing was entered: this bridge refuses forecasts until a setting is fixed\. HYPERODDS_FORECAST_KEY_FILE must be an absolute path\./,
+      );
+      assert.ok(relative.answers[2].result.tools);
+      assert.equal(server.recorded.length, 2);
       const both = await run("", {
         HYPERODDS_FORECAST_KEY_FILE: file,
         HYPERODDS_FORECAST_KEY: `0x${"0".repeat(63)}1`,
       });
-      assert.equal(both.code, 2);
+      assert.equal(both.code, 0);
       assert.match(both.stderr, /Set HYPERODDS_FORECAST_KEY or HYPERODDS_FORECAST_KEY_FILE, not both\./);
       assert.ok(!both.stderr.includes("0".repeat(63)));
     });

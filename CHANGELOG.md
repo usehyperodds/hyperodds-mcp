@@ -5,6 +5,15 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+### Fixed
+
+- A wrong forecast setting, such as a relative `HYPERODDS_FORECAST_KEY_FILE`, no longer stops the
+  bridge at startup, which took the market tools down with it. The bridge starts, says what is
+  wrong on stderr, and answers `odds_forecast`, and `odds_forecast_record` without an address, with
+  that reason until the setting is fixed. The settings are `HYPERODDS_FORECAST_KEY`,
+  `HYPERODDS_FORECAST_KEY_FILE`, `HYPERODDS_FORECAST_SIGNING`, `HYPERODDS_FORECAST_LIMIT` and
+  `HYPERODDS_SITE_URL`; a wrong `HYPERODDS_MCP_URL` still stops it.
+
 ## [0.2.5] - 2026-11-27
 
 ### Fixed

@@ -70,32 +70,41 @@ if (target.protocol === "http:" && !loopback.test(target.hostname))
 // The query string could carry a secret too, so errors and logs leave it out.
 const shown = `${target.origin}${target.pathname}`;
 
+// A bad forecast setting turns forecasts off, not the bridge: the market tools still work.
+const problems: string[] = [];
+
 // Answers link a forecaster's public record only on a site known to publish it.
 const siteSetting = process.env.HYPERODDS_SITE_URL;
 let site: string | undefined;
 if (siteSetting) {
-  if (!URL.canParse(siteSetting)) fail("HYPERODDS_SITE_URL is not a URL.");
-  const { protocol, origin } = new URL(siteSetting);
-  if (protocol !== "https:" && protocol !== "http:") fail("HYPERODDS_SITE_URL must be an http or https URL.");
-  site = origin;
+  if (!URL.canParse(siteSetting)) problems.push("HYPERODDS_SITE_URL is not a URL.");
+  else {
+    const { protocol, origin } = new URL(siteSetting);
+    if (protocol !== "https:" && protocol !== "http:")
+      problems.push("HYPERODDS_SITE_URL must be an http or https URL.");
+    else site = origin;
+  }
 } else if (target.hostname === "api.usehyperodds.com") site = "https://usehyperodds.com";
 
 const envKey = takeKey();
 const keyFile = process.env.HYPERODDS_FORECAST_KEY_FILE || undefined;
-if (keyFile && !isAbsolute(keyFile)) fail("HYPERODDS_FORECAST_KEY_FILE must be an absolute path.");
-if (keyFile && envKey) fail("Set HYPERODDS_FORECAST_KEY or HYPERODDS_FORECAST_KEY_FILE, not both.");
+if (keyFile && !isAbsolute(keyFile)) problems.push("HYPERODDS_FORECAST_KEY_FILE must be an absolute path.");
+if (keyFile && envKey) problems.push("Set HYPERODDS_FORECAST_KEY or HYPERODDS_FORECAST_KEY_FILE, not both.");
 const signing = process.env.HYPERODDS_FORECAST_SIGNING ?? "";
 if (!["", "on", "off", "true", "false"].includes(signing.trim().toLowerCase()))
-  fail("HYPERODDS_FORECAST_SIGNING must be on or off.");
+  problems.push("HYPERODDS_FORECAST_SIGNING must be on or off.");
 const signs = !["off", "false"].includes(signing.trim().toLowerCase());
 const limitSetting = process.env.HYPERODDS_FORECAST_LIMIT?.trim() || String(FORECAST_LIMIT);
 if (!/^\d{1,6}$/.test(limitSetting) || Number(limitSetting) < 1)
-  fail("HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999.");
+  problems.push("HYPERODDS_FORECAST_LIMIT must be a whole number of forecasts, from 1 to 999999.");
+const forecastsOff = problems[0];
 
 const log = (line: string) => process.stderr.write(`hyperodds-mcp: ${line}\n`);
 const flags = [...process.execArgv, ...(process.env.NODE_OPTIONS ?? "").split(/\s+/)];
 const proxy = proxyNote(target, process.env, process.versions.node, flags);
 if (proxy?.ignored) log(proxy.text);
+if (forecastsOff)
+  log(`${forecastsOff} The bridge refuses forecasts until that is fixed; the market tools work as usual.`);
 // The client went away: nothing is left to answer.
 process.stdout.on("error", () => process.exit(0));
 const write = (message: object) => process.stdout.write(`${JSON.stringify(message)}\n`);
@@ -106,7 +115,8 @@ const bridge = new Bridge({
   log,
   userAgent: `hyperodds-mcp/${version} node/${process.versions.node}`,
   networkNote: proxy?.text,
-  keys: signs ? { env: envKey, file: keyFile, path: keyPath(), log } : undefined,
+  keys: signs && !forecastsOff ? { env: envKey, file: keyFile, path: keyPath(), log } : undefined,
+  forecastsOff,
   siteUrl: site,
   forecastLimit: Number(limitSetting),
 });

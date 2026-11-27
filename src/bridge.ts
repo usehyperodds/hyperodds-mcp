@@ -46,6 +46,8 @@ export interface BridgeOptions {
   fetch?: typeof fetch;
   /** The forecaster key. Without it, forecasts pass through unsigned, for a sign link. */
   keys?: KeySource;
+  /** A forecast setting that is wrong, in a sentence: forecasts are refused with it, nothing else is. */
+  forecastsOff?: string;
   /** The site with the server's public forecast records. Without it, answers name no record link. */
   siteUrl?: string;
   /** The most forecasts the bridge signs in one session, from start to exit. */
@@ -220,6 +222,24 @@ export class Bridge {
 
   /** The response to a request: the server's, or for forecasts, the one the bridge gets by signing. */
   private async answer(msg: Message, id: Id, signal: AbortSignal): Promise<Message | null> {
+    const off = this.opts.forecastsOff;
+    if (off && msg.method === "tools/call") {
+      const { name, arguments: args } = msg.params ?? {};
+      const fix = "Fix it in your MCP client's settings for this server, then restart the bridge.";
+      if (name === "odds_forecast")
+        return toolError(
+          id,
+          `Nothing was entered: this bridge refuses forecasts until a setting is fixed. ${off} ${fix} The market tools work meanwhile.`,
+        );
+      if (
+        name === "odds_forecast_record" &&
+        (args === undefined || (isRecord(args) && args.address === undefined))
+      )
+        return toolError(
+          id,
+          `This bridge can't tell which forecaster is this computer's until a setting is fixed. ${off} ${fix} Or name an address to read that forecaster's record.`,
+        );
+    }
     const keys = this.opts.keys;
     if (keys && msg.method === "tools/call") {
       const { name, arguments: args } = msg.params ?? {};

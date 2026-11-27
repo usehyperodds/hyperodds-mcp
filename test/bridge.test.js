@@ -1166,4 +1166,42 @@ describe("forecasts signed on this computer", () => {
     assert.deepEqual(byId[2].result.tools, TOOLS);
     assert.equal(byId[3].error.code, -32602);
   });
+
+  test("with a forecast setting wrong, refuses forecasts with the reason and forwards everything else", async () => {
+    const server = standIn();
+    const off = "HYPERODDS_FORECAST_KEY_FILE must be an absolute path.";
+    const h = harness((body) => json(server.answer(body)), undefined, "Hyperodds", { forecastsOff: off });
+    const call = (id, name, args) => ({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: { name, arguments: args },
+    });
+    await h.send(
+      call(1, "odds_forecast", { forecasts: ten }),
+      call(2, "odds_forecast", { signed: {} }),
+      call(3, "odds_forecast_record", {}),
+      call(4, "odds_forecast_record", { address: TEST_ADDRESS }),
+      { jsonrpc: "2.0", id: 5, method: "tools/list" },
+    );
+    const byId = Object.fromEntries(h.out.map((m) => [m.id, m]));
+    for (const id of [1, 2]) {
+      assert.equal(byId[id].result.isError, true);
+      assert.equal(
+        byId[id].result.content[0].text,
+        `Nothing was entered: this bridge refuses forecasts until a setting is fixed. ${off} Fix it in your MCP client's settings for this server, then restart the bridge. The market tools work meanwhile.`,
+      );
+    }
+    assert.equal(byId[3].result.isError, true);
+    assert.match(
+      byId[3].result.content[0].text,
+      /^This bridge can't tell which forecaster is this computer's/,
+    );
+    assert.match(byId[3].result.content[0].text, /Or name an address to read that forecaster's record\.$/);
+    assert.deepEqual(
+      h.sent.map((s) => s.body.id),
+      [4, 5],
+    );
+    assert.deepEqual(byId[5].result.tools, TOOLS);
+  });
 });
