@@ -970,7 +970,7 @@ describe("forecasts signed on this computer", () => {
           id: "hyperodds-mcp-1",
           method: "elicitation/create",
           params: {
-            message: `Sign these 2 forecasts and enter them in Hyperodds' public record as forecaster ${TEST_ADDRESS}? Each is the probability that the market's first side wins.\n- outcome 42400: 62.5%\n- outcome 42501: 0.01%`,
+            message: `Sign and enter these 2 forecasts in Hyperodds' public record as forecaster ${TEST_ADDRESS}? Each is the probability that the market's first side wins.\n- outcome 42400: 62.5%\n- outcome 42501: 0.01%`,
             requestedSchema: { type: "object", properties: {} },
           },
         },
@@ -992,6 +992,10 @@ describe("forecasts signed on this computer", () => {
       ];
       for (const [i, answer] of answers.entries()) {
         h.ask(10 + i, one);
+        assert.equal(
+          h.out.at(-1).params.message,
+          `Sign and enter this forecast in Hyperodds' public record as forecaster ${TEST_ADDRESS}? It is the probability that the market's first side wins.\n- outcome 42400: 62.5%`,
+        );
         h.reply({ id: `hyperodds-mcp-${i + 1}`, ...answer });
         await h.bridge.idle();
         assert.deepEqual(h.out.at(-1), {

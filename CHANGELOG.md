@@ -5,6 +5,11 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+### Fixed
+
+- The confirmation for a single forecast reads "Sign and enter this forecast in Hyperodds' public
+  record…? It is the probability…", where it said "Sign this forecast and enter them".
+
 ## [0.2.4] - 2026-11-26
 
 ### Changed

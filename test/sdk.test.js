@@ -125,7 +125,7 @@ describe("the official MCP SDK client", () => {
     });
     const recorded = await call("odds_forecast", { forecasts: two });
     assert.equal(recorded.structuredContent.status, "recorded");
-    assert.match(asked[0].message, /^Sign these 2 forecasts and enter them in Hyperodds' public record/);
+    assert.match(asked[0].message, /^Sign and enter these 2 forecasts in Hyperodds' public record/);
     assert.deepEqual(asked[0].requestedSchema, { type: "object", properties: {} });
 
     action = "decline";

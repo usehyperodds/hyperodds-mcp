@@ -362,14 +362,15 @@ export class Bridge {
       else signal.addEventListener("abort", withdraw, { once: true });
     });
     const lines = entries.map((e) => `- outcome ${e.outcome}: ${e.probabilityBps / 100}%`);
-    const count = entries.length === 1 ? "this forecast" : `these ${entries.length} forecasts`;
+    const [count, each] =
+      entries.length === 1 ? ["this forecast", "It is"] : [`these ${entries.length} forecasts`, "Each is"];
     this.opts.write({
       jsonrpc: "2.0",
       id,
       method: "elicitation/create",
       params: {
         message: [
-          `Sign ${count} and enter them in Hyperodds' public record as forecaster ${forecaster}? Each is the probability that the market's first side wins.`,
+          `Sign and enter ${count} in Hyperodds' public record as forecaster ${forecaster}? ${each} the probability that the market's first side wins.`,
           ...lines,
         ].join("\n"),
         requestedSchema: { type: "object", properties: {} },
