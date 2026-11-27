@@ -5,6 +5,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-27
+
 ### Fixed
 
 - A wrong forecast setting, such as a relative `HYPERODDS_FORECAST_KEY_FILE`, no longer stops the
@@ -169,7 +171,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
-[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.6
 [0.2.5]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.5
 [0.2.4]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.4
 [0.2.3]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.3
