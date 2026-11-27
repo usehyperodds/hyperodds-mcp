@@ -5,6 +5,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-11-27
+
 ### Fixed
 
 - The confirmation for a single forecast reads "Sign and enter this forecast in Hyperodds' public
@@ -158,7 +160,8 @@ Notable changes to `@hyperodds/mcp`, newest first. Versions follow
 - When `HYPERODDS_MCP_URL` points elsewhere, errors name that URL.
 - Closing stdin, the protocol's way to stop a server, drops what is in flight and exits.
 
-[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/usehyperodds/hyperodds-mcp/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.5
 [0.2.4]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.4
 [0.2.3]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.3
 [0.2.2]: https://github.com/usehyperodds/hyperodds-mcp/releases/tag/v0.2.2
