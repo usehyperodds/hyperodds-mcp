@@ -116,9 +116,8 @@ Each message from the client goes out as one HTTPS request, and its response com
 The bridge never follows a redirect: a reply that redirects is an error, so no message moves to
 plain http or another server. For a forecast, the bridge uses your forecaster key to sign the
 forecasts your agent asked for, and sends them in that same request. It never signs anything a
-server sends it. Beyond the protocol version and the capabilities your client reported when it
-connected, and a count of the forecasts it has signed since, the bridge keeps only your forecaster
-key and the time it last signed on each market.
+server sends it. The bridge keeps only your forecaster key, the time it last signed on each market,
+the protocol version and capabilities your client reported, and a count of forecasts signed since.
 
 Requests run side by side. If one fails or gets no answer within 30 seconds, the client receives a
 JSON-RPC error that names the cause; a cancelled request is dropped. The bridge takes lines of up
