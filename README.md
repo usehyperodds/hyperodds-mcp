@@ -152,8 +152,8 @@ Entries close an hour before each market's cutoff, and one call takes up to 50 m
 fall on the same UTC day. If you forecast a market again, the forecast signed latest is the one
 scored; earlier ones stay in the record. The bridge signs each forecast at least a second after its
 last one on the same market, so a quick revision still counts. It keeps those times in
-`forecast-times.json`, in the folder of the key it makes, whichever key it signs with. There are no
-prizes or payouts.
+`forecast-times.json`, in the folder of the key it makes, whichever key it signs with. The record
+itself pays no prizes.
 
 ### Your forecaster key
 
