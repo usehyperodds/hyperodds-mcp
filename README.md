@@ -268,6 +268,11 @@ The bridge reads its settings from the environment. In an entry you add by hand,
 | `HYPERODDS_FORECAST_LIMIT`    | `200`                                                      | The most forecasts the bridge signs in a session, from start to exit              |
 | `HYPERODDS_SITE_URL`          | `https://usehyperodds.com` with the hosted server, or none | The site that publishes the server's forecast records, linked after each forecast |
 
+A forecast setting the bridge can't use, such as a relative `HYPERODDS_FORECAST_KEY_FILE`, doesn't
+stop it. The bridge names the problem in your client's server log and answers every forecast with
+it until you fix the setting and restart the bridge; the market tools work meanwhile. A
+`HYPERODDS_MCP_URL` it can't use does stop it, since no tool could answer.
+
 ```json
 {
   "command": "npx",
